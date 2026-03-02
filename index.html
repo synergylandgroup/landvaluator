@@ -1401,7 +1401,7 @@ function loadPropertiesFromFunction(props) {
   properties = [];
   let skipped = 0;
   props.forEach(prop => {
-    let { lat, lng, apn, address, city, state, zip, acreage, zone, rowIndex } = prop;
+    let { lat, lng, apn, address, city, state, zip, county, acreage, zone, rowIndex } = prop;
 
     // Validate coordinates
     // Auto-swap if clearly reversed
@@ -1416,6 +1416,14 @@ function loadPropertiesFromFunction(props) {
     // US bounds: lat 18–72, lng -180 to -60
     if (lat < 18 || lat > 72 || lng < -180 || lng > -60) { skipped++; return; }
 
+    // Filter to selected county only
+    const _selCounty = document.getElementById('countySelect').value;
+    if (_selCounty && prop.county) {
+      const propCounty = prop.county.toLowerCase().replace(' county','').trim();
+      const selCounty  = _selCounty.toLowerCase().trim();
+      if (propCounty !== selCounty) { skipped++; return; }
+    }
+
     const el = document.createElement('div');
     el.style.cssText = 'width:10px;height:10px;border-radius:50%;background:#f7c948;border:1.5px solid rgba(0,0,0,0.4);cursor:pointer;z-index:1;position:relative;';
     const popup = new mapboxgl.Popup({ offset: 8 }).setHTML(
@@ -1427,7 +1435,7 @@ function loadPropertiesFromFunction(props) {
       </div>`
     );
     const marker = new mapboxgl.Marker({ element: el, anchor: 'center' }).setLngLat([lng, lat]).setPopup(popup).addTo(map);
-    properties.push({ lat, lng, apn, address, city, state, zip, acreage, zone: zone || null, rowIndex, marker });
+    properties.push({ lat, lng, apn, address, city, state, zip, county, acreage, zone: zone || null, rowIndex, marker });
   });
   document.getElementById('statProps').textContent = properties.length;
   if (skipped) showToast(`${skipped} properties skipped — coordinates out of range`, 'info');
