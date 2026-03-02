@@ -211,7 +211,6 @@
   <div class="status-text" id="statusText">NOT CONNECTED</div>
   <div class="header-actions">
     <button class="btn btn-ghost" onclick="shareURL()" title="Copy shareable link">🔗 Share</button>
-    <button class="btn btn-ghost" id="btnTogglePins" onclick="togglePins()" title="Show/hide property pins" style="display:none">📍 Hide Pins</button>
     <button class="btn btn-secondary" onclick="openSheetsModal()">⚙ Sheets</button>
     <button class="btn btn-primary" onclick="runAssignment()">▶ Assign</button>
     <button class="btn btn-danger" onclick="exportCSV()">↓ CSV</button>
@@ -1424,26 +1423,11 @@ function loadPropertiesFromFunction(props) {
       if (propCounty !== selCounty) { skipped++; return; }
     }
 
-    const el = document.createElement('div');
-    el.style.cssText = 'width:10px;height:10px;border-radius:50%;background:#f7c948;border:1.5px solid rgba(0,0,0,0.4);cursor:pointer;z-index:1;position:relative;';
-    const popup = new mapboxgl.Popup({ offset: 8 }).setHTML(
-      `<div style="font-family:-apple-system,sans-serif;font-size:12px;line-height:1.9;background:#111827;color:#e8f0fe;padding:6px 10px;border-radius:6px">
-        <strong style="color:var(--accent)">APN: ${apn || '—'}</strong><br>
-        ${address ? `<span>${address}</span><br>` : ''}
-        ${city || state ? `<span>${[city,state,zip].filter(Boolean).join(', ')}</span><br>` : ''}
-        <span style="color:#6b7a99;font-size:10px">${lat.toFixed(5)}, ${lng.toFixed(5)}</span>
-      </div>`
-    );
-    const marker = new mapboxgl.Marker({ element: el, anchor: 'center' }).setLngLat([lng, lat]).setPopup(popup).addTo(map);
-    properties.push({ lat, lng, apn, address, city, state, zip, county, acreage, zone: zone || null, rowIndex, marker });
+    // Store property data without map marker (pins disabled pending better implementation)
+    properties.push({ lat, lng, apn, address, city, state, zip, county, acreage, zone: zone || null, rowIndex, marker: null });
   });
   document.getElementById('statProps').textContent = properties.length;
   if (skipped) showToast(`${skipped} properties skipped — coordinates out of range`, 'info');
-  // Show pin toggle button now that pins are loaded
-  const toggleBtn = document.getElementById('btnTogglePins');
-  if (toggleBtn) toggleBtn.style.display = '';
-  _pinsVisible = true;
-  if (toggleBtn) toggleBtn.textContent = '📍 Hide Pins';
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1471,13 +1455,13 @@ async function runAssignment() {
       if (pointInPolygon(prop.lat, prop.lng, poly.points)) {
         prop.zone = poly.letter; // write letter only (A, B, C...)
         poly.propCount++;
-        _markerColor(prop.marker, poly.color);
+        // marker coloring disabled (pins not shown)
         assigned++;
         if (prop.rowIndex) assignments.push({ rowIndex: prop.rowIndex, zone: poly.letter });
         break;
       }
     }
-    if (!prop.zone) _markerColor(prop.marker, '#f7c948');
+    // if (!prop.zone) _markerColor(prop.marker, '#f7c948');
   });
 
   document.getElementById('statAssigned').textContent = assigned;
@@ -1514,15 +1498,7 @@ async function runAssignment() {
 }
 function _markerColor(m, c) { if (m) m.getElement().style.background = c; }
 
-let _pinsVisible = true;
-function togglePins() {
-  _pinsVisible = !_pinsVisible;
-  properties.forEach(p => {
-    if (p.marker) p.marker.getElement().style.display = _pinsVisible ? '' : 'none';
-  });
-  const btn = document.getElementById('btnTogglePins');
-  if (btn) btn.textContent = _pinsVisible ? '📍 Hide Pins' : '📍 Show Pins';
-}
+// Pin toggle removed — pins disabled pending better implementation
 
 // ═══════════════════════════════════════════════════════
 // EXPORT CSV
@@ -1654,7 +1630,7 @@ async function loadCounty() {
                    : f.geometry.type==='MultiPolygon' ? f.geometry.coordinates.flat(2) : [];
       coords.forEach(c => bounds.extend(c));
     });
-    map.fitBounds(bounds, { padding:40 });
+    map.fitBounds(bounds, { padding:60 });
     showToast(`${county} County loaded`, 'success');
   } catch(e) { showToast('Could not load county boundary', 'error'); }
 }
