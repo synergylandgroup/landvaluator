@@ -1,10 +1,5 @@
 // netlify/functions/sheets-write-pricing.js
-// Writes zone pricing tiers to the "Pricing Settings" tab
-// Preserves the existing header structure (rows 1-3)
-// Replaces all data rows starting at row 4
-// All column lookups by header name
-
-const { google } = require('googleapis');
+// Writes all zone pricing tiers to "Pricing Settings" tab
 
 exports.handler = async (event) => {
   const headers = {
@@ -13,107 +8,73 @@ exports.handler = async (event) => {
     'Content-Type': 'application/json',
   };
 
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers, body: '' };
-  }
-
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
-  }
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
+  if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
 
   try {
-    const {
-      sheetId,
-      pricingSheetName = 'Pricing Settings',
-      tiers, // [{ zone: 'A', minAcres: 0, maxAcres: 5, pricePerAcre: 1200 }, ...]
-    } = JSON.parse(event.body || '{}');
-
+    const { sheetId, pricingSheetName = 'Pricing Settings', tiers } = JSON.parse(event.body || '{}');
     if (!sheetId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'sheetId required' }) };
-    if (!tiers || !tiers.length) return { statusCode: 400, headers, body: JSON.stringify({ error: 'tiers array required' }) };
+    if (!tiers || !tiers.length) return { statusCode: 400, headers, body: JSON.stringify({ error: 'tiers required' }) };
 
-    // Auth
-    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    const token = await getAccessToken();
+
+    // Clear existing data rows A4:D103
+    const clearUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(pricingSheetName + '!A4:D103')}:clear`;
+    const clearRes = await fetch(clearUrl, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: '{}',
     });
+    if (!clearRes.ok) throw new Error(`Clear failed ${clearRes.status}: ${await clearRes.text()}`);
 
-    const sheets = google.sheets({ version: 'v4', auth });
+    // Write new tiers starting at A4
+    const writeData = tiers.map(t => [
+      String(t.zone || '').toUpperCase(),
+      t.minAcres !== '' && t.minAcres !== undefined ? Number(t.minAcres) : '',
+      t.maxAcres !== '' && t.maxAcres !== undefined ? Number(t.maxAcres) : '',
+      t.pricePerAcre !== '' && t.pricePerAcre !== undefined ? Number(t.pricePerAcre) : '',
+    ]);
 
-    // Read current header rows (rows 1-3) to find column positions by name
-    const headerRes = await sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range: `${pricingSheetName}!2:2`, // row 2 has the actual column labels
+    const writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(pricingSheetName + '!A4')}?valueInputOption=RAW`;
+    const writeRes = await fetch(writeUrl, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: writeData }),
     });
+    if (!writeRes.ok) throw new Error(`Write failed ${writeRes.status}: ${await writeRes.text()}`);
 
-    const headerRow = (headerRes.data.values || [[]])[0] || [];
-    const colIndex  = {};
-    headerRow.forEach((h, i) => { if (h) colIndex[h.trim()] = i; });
-
-    // Find required columns by name
-    const zoneCol  = colIndex['County Zone'];
-    const minCol   = colIndex['Min Acres'];
-    const maxCol   = colIndex['Max Acres'];
-    const ppaCol   = colIndex['Price Per Acre ($)'];
-
-    if (zoneCol === undefined || minCol === undefined || maxCol === undefined || ppaCol === undefined) {
-      return {
-        statusCode: 400, headers,
-        body: JSON.stringify({
-          error: 'Required columns not found in Pricing Settings row 2',
-          found: Object.keys(colIndex),
-          needed: ['County Zone', 'Min Acres', 'Max Acres', 'Price Per Acre ($)']
-        })
-      };
-    }
-
-    // Determine how many columns wide the sheet is
-    const numCols = headerRow.length;
-
-    // Build output rows — one per tier
-    // Each row is sparse: only fill the 4 pricing columns, leave others blank
-    const outputRows = tiers.map(tier => {
-      const row = new Array(numCols).fill('');
-      row[zoneCol] = String(tier.zone || '').toUpperCase();
-      row[minCol]  = tier.minAcres  !== '' && tier.minAcres  !== undefined ? Number(tier.minAcres)  : '';
-      row[maxCol]  = tier.maxAcres  !== '' && tier.maxAcres  !== undefined ? Number(tier.maxAcres)  : '';
-      row[ppaCol]  = tier.pricePerAcre !== '' && tier.pricePerAcre !== undefined ? Number(tier.pricePerAcre) : '';
-      return row;
-    });
-
-    // Clear existing data rows (row 4 onwards) in the polygon PPA section only
-    // We only clear columns A-D (the 4 pricing columns) to avoid touching Blind/Range sections
-    const lastDataRow = 3 + 100; // clear up to 100 rows of old data
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId: sheetId,
-      range: `${pricingSheetName}!A4:D${lastDataRow}`,
-    });
-
-    // Write new pricing rows starting at row 4
-    if (outputRows.length > 0) {
-      // Only write columns A-D
-      const writeData = outputRows.map(row => [row[zoneCol], row[minCol], row[maxCol], row[ppaCol]]);
-
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: sheetId,
-        range: `${pricingSheetName}!A4`,
-        valueInputOption: 'RAW',
-        requestBody: { values: writeData },
-      });
-    }
-
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ success: true, tiersWritten: tiers.length }),
-    };
-
+    return { statusCode: 200, headers, body: JSON.stringify({ success: true, tiersWritten: tiers.length }) };
   } catch (err) {
     console.error('sheets-write-pricing error:', err);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: err.message }),
-    };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
   }
 };
+
+async function getAccessToken() {
+  const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
+  const now = Math.floor(Date.now() / 1000);
+  const claim = { iss: creds.client_email, scope: 'https://www.googleapis.com/auth/spreadsheets', aud: 'https://oauth2.googleapis.com/token', exp: now + 3600, iat: now };
+  const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const payload = b64url(JSON.stringify(claim));
+  const sig = await signRS256(`${header}.${payload}`, creds.private_key);
+  const jwt = `${header}.${payload}.${sig}`;
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+  });
+  const data = await res.json();
+  if (!data.access_token) throw new Error('Auth failed: ' + JSON.stringify(data));
+  return data.access_token;
+}
+
+function b64url(str) {
+  return Buffer.from(str).toString('base64').replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+}
+
+async function signRS256(data, pemKey) {
+  const { createSign } = require('crypto');
+  const sign = createSign('RSA-SHA256');
+  sign.update(data); sign.end();
+  return sign.sign(pemKey).toString('base64').replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+}
