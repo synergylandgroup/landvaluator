@@ -163,6 +163,7 @@
   .ze-cell.price-col::-webkit-inner-spin-button,.ze-cell.price-col::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
   .ze-cell.price-col{-moz-appearance:textfield;}
   .ze-sync-note{font-size:10px;color:var(--muted);display:flex;align-items:center;gap:5px;}
+  #zeAllZones:checked + span, label:has(#zeAllZones:checked){color:var(--zone-blue);}
   .ze-sync-dot{width:6px;height:6px;border-radius:50%;background:var(--yellow);flex-shrink:0;}
 
 
@@ -285,18 +286,19 @@
 <div class="modal-overlay" id="sheetsModal">
   <div class="modal">
     <h2>GOOGLE SHEETS INTEGRATION</h2>
+    <div id="sheetsModalCounty" style="background:var(--accent-light);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--zone-blue);margin-bottom:12px;display:none"></div>
     <p>Paste your Spreadsheet ID below. The sheet must be shared: <strong>File → Share → Anyone with link → Viewer</strong>.</p>
     <label>SPREADSHEET ID</label>
     <input type="text" id="sheetId" placeholder="e.g. 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms">
     <div class="gs-help">From your URL: docs.google.com/spreadsheets/d/<strong>[THIS PART]</strong>/edit</div>
-    <label>SHEET TAB NAME</label><input type="text" id="sheetName" value="Sheet1">
-    <label>LATITUDE COLUMN</label><input type="text" id="colLat" value="latitude">
-    <label>LONGITUDE COLUMN</label><input type="text" id="colLng" value="longitude">
+    <label>SHEET TAB NAME (Raw Data)</label><input type="text" id="sheetName" value="LI Raw Dataset">
+    <label>LATITUDE COLUMN</label><input type="text" id="colLat" value="Latitude">
+    <label>LONGITUDE COLUMN</label><input type="text" id="colLng" value="Longitude">
     <label>PROPERTY ID COLUMN (APN)</label><input type="text" id="colAPN" value="APN">
-    <label>CITY COLUMN</label><input type="text" id="colCity" value="city">
-    <label>STATE COLUMN</label><input type="text" id="colState" value="state">
-    <label>ZIP COLUMN</label><input type="text" id="colZip" value="zip">
-    <label>OUTPUT ZONE COLUMN NAME</label><input type="text" id="colZone" value="Zone">
+    <label>CITY COLUMN</label><input type="text" id="colCity" value="City">
+    <label>STATE COLUMN</label><input type="text" id="colState" value="State">
+    <label>ZIP COLUMN</label><input type="text" id="colZip" value="ZIP">
+    <label>ZONE OUTPUT COLUMN</label><input type="text" id="colZone" value="County Zone">
     <div class="modal-actions">
       <button class="btn btn-danger" onclick="closeSheetsModal()">CANCEL</button>
       <button class="btn btn-primary" onclick="connectSheets()">CONNECT &amp; LOAD</button>
@@ -313,7 +315,11 @@
       <div>
         <div class="ze-title" id="zeTitle">Zone Info</div>
       </div>
-      <button class="btn btn-ghost" style="margin-left:auto;padding:4px 10px;font-size:11px;background:#fff" onclick="closeZoneEditor()">✕ Close</button>
+      <label style="margin-left:auto;display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap" title="Apply these tiers to ALL zones in this county">
+        <input type="checkbox" id="zeAllZones" style="width:14px;height:14px;accent-color:var(--zone-blue);cursor:pointer">
+        Apply to ALL zones
+      </label>
+      <button class="btn btn-ghost" style="margin-left:10px;padding:4px 10px;font-size:11px;background:#fff" onclick="closeZoneEditor()">✕ Close</button>
     </div>
 
     <!-- General Notes -->
@@ -377,7 +383,22 @@ let selectedColor = COLORS[0];
 // polygons: { id, name, letter, stateAbbr, countyName, color, points, description, labelMarker, handles[], _isRect, _bounds }
 let polygons = [];
 let properties = [];
-let sheetConfig = {};
+// Per-county sheet configs — keyed by "stateAbbr|countyName"
+let sheetConfigs = {};
+let sheetConfig  = {};  // active config for currently selected county
+
+function _countyKey(stateAbbr, countyName) {
+  return (stateAbbr || '').trim() + '|' + (countyName || '').trim();
+}
+
+function _getSheetConfig(stateAbbr, countyName) {
+  return sheetConfigs[_countyKey(stateAbbr, countyName)] || null;
+}
+
+function _setSheetConfig(stateAbbr, countyName, cfg) {
+  sheetConfigs[_countyKey(stateAbbr, countyName)] = cfg;
+  try { localStorage.setItem('geofence_sheet_configs', JSON.stringify(sheetConfigs)); } catch(e) {}
+}
 let countySourceId = null;
 let _pendingCountyGeoJSON = null;
 
@@ -785,6 +806,8 @@ function openZoneEditor(polyId) {
   // Header
   document.getElementById('zeBadge').textContent = `ZONE ${p.letter}`;
   document.getElementById('zeTitle').textContent = p.name;
+  // ALL checkbox — checked if this zone is marked as county-wide pricing
+  document.getElementById('zeAllZones').checked = p.allZones || false;
 
 
   // Notes
@@ -812,10 +835,12 @@ function saveZoneEditor() {
 
   p.description = document.getElementById('zeNotes').value.trim();
   p.pricingTiers = zeCollectRows();
+  p.allZones = document.getElementById('zeAllZones').checked;
 
   persistZones();
   closeZoneEditor();
-  showToast(`Zone ${p.letter} saved`, 'success');
+  const label = p.allZones ? `Zone ${p.letter} saved (ALL zones pricing)` : `Zone ${p.letter} saved`;
+  showToast(label, 'success');
 }
 
 // ── Table helpers ──────────────────────────────────────
@@ -1250,23 +1275,53 @@ function toggleSidebar() { document.getElementById('sidebar').classList.toggle('
 // ═══════════════════════════════════════════════════════
 // GOOGLE SHEETS
 // ═══════════════════════════════════════════════════════
-function openSheetsModal()  { document.getElementById('sheetsModal').classList.add('open'); }
+function openSheetsModal() {
+  // Load config for currently selected county if it exists
+  const sa = document.getElementById('stateSelect').value;
+  const cn = document.getElementById('countySelect').value;
+  const badge = document.getElementById('sheetsModalCounty');
+  if (sa && cn) {
+    badge.textContent = `${cn} County, ${sa}`;
+    badge.style.display = '';
+    const existing = _getSheetConfig(sa, cn);
+    if (existing) {
+      document.getElementById('sheetId').value    = existing.sheetId    || '';
+      document.getElementById('sheetName').value  = existing.sheetName  || 'LI Raw Dataset';
+      document.getElementById('colLat').value     = existing.colLat     || 'Latitude';
+      document.getElementById('colLng').value     = existing.colLng     || 'Longitude';
+      document.getElementById('colAPN').value     = existing.colAPN     || 'APN';
+      document.getElementById('colCity').value    = existing.colCity    || 'City';
+      document.getElementById('colState').value   = existing.colState   || 'State';
+      document.getElementById('colZip').value     = existing.colZip     || 'ZIP';
+      document.getElementById('colZone').value    = existing.colZone    || 'County Zone';
+    }
+  } else {
+    badge.style.display = 'none';
+  }
+  document.getElementById('sheetsModal').classList.add('open');
+}
 function closeSheetsModal() { document.getElementById('sheetsModal').classList.remove('open'); }
 async function connectSheets() {
   const sheetId = document.getElementById('sheetId').value.trim();
   if (!sheetId) { showToast('Please enter a Spreadsheet ID', 'error'); return; }
+  const sa = document.getElementById('stateSelect').value;
+  const cn = document.getElementById('countySelect').value;
+  if (!sa || !cn) { showToast('Please select a State and County first', 'error'); return; }
   sheetConfig = {
     sheetId,
-    sheetName: document.getElementById('sheetName').value.trim() || 'Sheet1',
-    colLat:  document.getElementById('colLat').value.trim()  || 'latitude',
-    colLng:  document.getElementById('colLng').value.trim()  || 'longitude',
-    colAPN:  document.getElementById('colAPN').value.trim()  || 'APN',
-    colCity: document.getElementById('colCity').value.trim() || 'city',
-    colState:document.getElementById('colState').value.trim()|| 'state',
-    colZip:  document.getElementById('colZip').value.trim()  || 'zip',
-    colZone: document.getElementById('colZone').value.trim() || 'Zone',
+    stateAbbr:  sa,
+    countyName: cn,
+    sheetName:  document.getElementById('sheetName').value.trim()  || 'LI Raw Dataset',
+    colLat:     document.getElementById('colLat').value.trim()     || 'Latitude',
+    colLng:     document.getElementById('colLng').value.trim()     || 'Longitude',
+    colAPN:     document.getElementById('colAPN').value.trim()     || 'APN',
+    colCity:    document.getElementById('colCity').value.trim()    || 'City',
+    colState:   document.getElementById('colState').value.trim()   || 'State',
+    colZip:     document.getElementById('colZip').value.trim()     || 'ZIP',
+    colZone:    document.getElementById('colZone').value.trim()    || 'County Zone',
   };
-  try { localStorage.setItem('geofence_sheet_config', JSON.stringify(sheetConfig)); } catch(e) {}
+  // Save per-county
+  _setSheetConfig(sa, cn, sheetConfig);
   showToast('Connecting to Google Sheets...', 'info');
   try {
     const url = `https://docs.google.com/spreadsheets/d/${sheetConfig.sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetConfig.sheetName)}`;
@@ -1274,6 +1329,7 @@ async function connectSheets() {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     parseAndLoad(await r.text());
     setConnected(true); closeSheetsModal();
+    showToast(`Connected: ${cn} County, ${sa}`, 'success');
   } catch(e) { showToast('Connection failed — check sharing settings', 'error'); }
 }
 function parseAndLoad(csv) {
@@ -1511,19 +1567,8 @@ map.on('load', () => {
   // Safety net: rebuild after a tick to ensure map is fully ready
   setTimeout(() => { if (polygons.length) _rebuildAllLabels(); }, 150);
   try {
-    const cfg = JSON.parse(localStorage.getItem('geofence_sheet_config'));
-    if (cfg) {
-      sheetConfig = cfg;
-      document.getElementById('sheetId').value    = cfg.sheetId    || '';
-      document.getElementById('sheetName').value  = cfg.sheetName  || 'Sheet1';
-      document.getElementById('colLat').value     = cfg.colLat     || 'latitude';
-      document.getElementById('colLng').value     = cfg.colLng     || 'longitude';
-      document.getElementById('colAPN').value     = cfg.colAPN     || 'APN';
-      document.getElementById('colCity').value    = cfg.colCity    || 'city';
-      document.getElementById('colState').value   = cfg.colState   || 'state';
-      document.getElementById('colZip').value     = cfg.colZip     || 'zip';
-      document.getElementById('colZone').value    = cfg.colZone    || 'Zone';
-    }
+    const cfgs = JSON.parse(localStorage.getItem('geofence_sheet_configs'));
+    if (cfgs) { sheetConfigs = cfgs; }
   } catch(e) {}
   const appState = loadAppState();
   if (appState && appState.state) {
