@@ -1,4 +1,4 @@
-	
-name	"countyzone-pro"
-version	"1.0.0"
-description	"CountyZone Pro - Netlify Functions"
+{
+  "name": "countyzone-pro",
+  "version": "1.0.0"
+}
