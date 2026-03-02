@@ -419,7 +419,7 @@ const map = new mapboxgl.Map({
   boxZoom: false,
 });
 map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
-map.addControl(new mapboxgl.ScaleControl({ maxWidth: 120 }), 'bottom-left');
+map.addControl(new mapboxgl.ScaleControl({ maxWidth: 120, unit: 'imperial' }), 'bottom-left');
 
 function resetNorth() { map.easeTo({ bearing: 0, pitch: 0, duration: 500 }); }
 map.on('rotate', () => {
@@ -435,12 +435,13 @@ map.on('style.load', () => {
   _initDrawLayers();
   _restoreAllZoneLayers();
   polygons.forEach(p => _addZoneLabel(p));
+  _rebuildAllLabels();
   if (_pendingCountyGeoJSON) _readdCountyLayer(_pendingCountyGeoJSON);
 });
 
 // Re-evaluate clusters on zoom/pan
-map.on('zoomend', () => { if (polygons.length) _refreshClusterLabels(); });
-map.on('moveend', () => { if (polygons.length) _refreshClusterLabels(); });
+map.on('zoomend', () => { if (polygons.length) { _refreshLabelMode(); } });
+map.on('moveend', () => { if (polygons.length) { _refreshLabelMode(); } });
 
 // ═══════════════════════════════════════════════════════
 // DRAW LAYERS
@@ -510,54 +511,50 @@ function _restoreAllZoneLayers() { polygons.forEach(p => _addZoneLayers(p)); }
 
 // ═══════════════════════════════════════════════════════
 // ZONE LABELS
+// Hierarchy: zoomed-out → county pill → zoom in → zone labels → click → notes
 // ═══════════════════════════════════════════════════════
-// ── Zone label click helpers ──────────────────────────
-const _clickTimers = {};
-function _handleLabelClick(polyId) {
-  // Single click = zoom to county. Double click = open notes.
-  if (_clickTimers[polyId]) {
-    clearTimeout(_clickTimers[polyId]);
-    delete _clickTimers[polyId];
-    openZoneDescModal(polyId); // double-click
-  } else {
-    _clickTimers[polyId] = setTimeout(() => {
-      delete _clickTimers[polyId];
-      const p = polygons.find(p => p.id === polyId);
-      if (p) zoomToZoneAndCounty(p); // single-click
-    }, 260);
-  }
-}
+
+// Zoom threshold: below this = show county pills, at/above = show zone labels
+const COUNTY_PILL_ZOOM = 9;
 
 function _polyCenter(poly) {
   const lngs = poly.points.map(p=>p[0]), lats = poly.points.map(p=>p[1]);
   return [(Math.min(...lngs)+Math.max(...lngs))/2, (Math.min(...lats)+Math.max(...lats))/2];
 }
 
-// Cluster markers — keyed by "stateAbbr|countyName"
-let _clusterMarkers = {};
+// County pill markers — keyed by "stateAbbr|countyName"
+let _countyPillMarkers = {};
 
+// Add/refresh a single zone's individual label (hidden until zoomed in)
 function _addZoneLabel(poly) {
   _removeZoneLabel(poly);
   const el = document.createElement('div');
   el.className = 'zone-label';
   el.innerHTML = `<span class="zl-letter" style="color:var(--zone-blue,#2c5282)">ZONE ${poly.letter||''}</span><span class="zl-name">${poly.name||''}</span>`;
-  el.addEventListener('click', () => _handleLabelClick(poly.id));
+  // Single click on zone label = open Notes & Pricing
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openZoneDescModal(poly.id);
+  });
   const center = _polyCenter(poly);
   el.style.borderColor = poly.color + '66';
+  // Start hidden — _refreshLabelMode will show/hide based on zoom
+  el.style.display = 'none';
   poly.labelMarker = new mapboxgl.Marker({ element:el, anchor:'center' }).setLngLat(center).addTo(map);
-  _refreshClusterLabels();
+  _refreshLabelMode();
 }
 
 function _removeZoneLabel(poly) {
   if (poly.labelMarker) { poly.labelMarker.remove(); poly.labelMarker = null; }
 }
 
-function _refreshClusterLabels() {
-  // Remove existing cluster markers
-  Object.values(_clusterMarkers).forEach(m => m.remove());
-  _clusterMarkers = {};
+// Build/rebuild all county pills
+function _buildCountyPills() {
+  // Remove old pills
+  Object.values(_countyPillMarkers).forEach(m => m.remove());
+  _countyPillMarkers = {};
 
-  // Group polygons by county key
+  // Group by county
   const groups = {};
   polygons.forEach(p => {
     const key = (p.stateAbbr||'?') + '|' + (p.countyName||'?');
@@ -566,56 +563,53 @@ function _refreshClusterLabels() {
   });
 
   Object.entries(groups).forEach(([key, polys]) => {
-    if (polys.length < 2) return; // no cluster needed for single zones
-
-    // Calculate centroid of all zone centers in this county
+    // Centroid of all zone centers in county
     const centers = polys.map(_polyCenter);
-    const avgLng = centers.reduce((s,c) => s+c[0], 0) / centers.length;
-    const avgLat = centers.reduce((s,c) => s+c[1], 0) / centers.length;
+    const lng = centers.reduce((s,c) => s+c[0], 0) / centers.length;
+    const lat = centers.reduce((s,c) => s+c[1], 0) / centers.length;
 
-    // Check pixel spread — only cluster if labels would overlap (within ~80px)
-    const pixels = centers.map(c => map.project(c));
-    let allClose = true;
-    for (let i = 0; i < pixels.length; i++) {
-      for (let j = i+1; j < pixels.length; j++) {
-        const dist = Math.hypot(pixels[i].x-pixels[j].x, pixels[i].y-pixels[j].y);
-        if (dist > 80) { allClose = false; break; }
-      }
-      if (!allClose) break;
-    }
-
-    if (!allClose) return; // spread out enough, show individual labels normally
-
-    // Hide individual labels, show cluster badge
-    polys.forEach(p => { if (p.labelMarker) p.labelMarker.getElement().style.display = 'none'; });
+    const county = polys[0].countyName || 'County';
+    const st = polys[0].stateAbbr || '';
+    const count = polys.length;
 
     const el = document.createElement('div');
     el.className = 'zone-cluster';
-    const county = polys[0].countyName || 'County';
-    const st = polys[0].stateAbbr || '';
-    el.innerHTML = `${county}, ${st} <span class="zc-count">${polys.length}</span>`;
-    el.title = polys.map(p => 'ZONE '+p.letter).join(' · ') + ' — click to zoom';
+    el.innerHTML = `${county} County, ${st}&nbsp;<span class="zc-count">${count}</span>`;
+    el.title = `Click to zoom into ${county} County`;
 
+    // Single click on county pill = zoom into county, which triggers label mode switch
     el.addEventListener('click', () => {
-      // Zoom to fit all zones in this county
       const b = new mapboxgl.LngLatBounds();
       polys.forEach(p => p.points.forEach(pt => b.extend(pt)));
-      map.fitBounds(b, { padding: 80 });
+      map.fitBounds(b, { padding: 100 });
     });
 
     const marker = new mapboxgl.Marker({ element:el, anchor:'center' })
-      .setLngLat([avgLng, avgLat]).addTo(map);
-    _clusterMarkers[key] = marker;
+      .setLngLat([lng, lat]).addTo(map);
+    _countyPillMarkers[key] = marker;
   });
 }
 
-function _showAllLabels() {
-  // Restore individual label visibility
-  polygons.forEach(p => {
-    if (p.labelMarker) p.labelMarker.getElement().style.display = '';
+// Master switch: called on every zoomend/moveend and after label changes
+function _refreshLabelMode() {
+  const zoom = map.getZoom();
+  const zoomed = zoom >= COUNTY_PILL_ZOOM;
+
+  // County pills: visible when zoomed out
+  Object.values(_countyPillMarkers).forEach(m => {
+    m.getElement().style.display = zoomed ? 'none' : '';
   });
-  Object.values(_clusterMarkers).forEach(m => m.remove());
-  _clusterMarkers = {};
+
+  // Zone labels: visible when zoomed in
+  polygons.forEach(p => {
+    if (p.labelMarker) p.labelMarker.getElement().style.display = zoomed ? '' : 'none';
+  });
+}
+
+// Full rebuild — call after any polygon add/remove
+function _rebuildAllLabels() {
+  _buildCountyPills();
+  _refreshLabelMode();
 }
 
 // ═══════════════════════════════════════════════════════
