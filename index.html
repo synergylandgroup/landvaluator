@@ -165,6 +165,18 @@
   .ze-sync-note{font-size:10px;color:var(--muted);display:flex;align-items:center;gap:5px;}
   .ze-sync-dot{width:6px;height:6px;border-radius:50%;background:var(--yellow);flex-shrink:0;}
 
+
+  /* Custom confirm dialog */
+  #confirmModal .modal{width:400px;}
+  .confirm-icon{font-size:28px;margin-bottom:8px;display:block;text-align:center;}
+  .confirm-title{font-size:15px;font-weight:700;color:var(--text);text-align:center;margin-bottom:8px;line-height:1.4;}
+  .confirm-sub{font-size:12px;color:var(--muted);text-align:center;line-height:1.6;margin-bottom:0;}
+  .confirm-type-wrap{margin-top:14px;}
+  .confirm-type-label{font-size:11px;color:var(--muted);margin-bottom:6px;display:block;text-align:center;}
+  .confirm-type-label strong{color:var(--text);}
+  #confirmTypeInput{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:20px;font-family:var(--font);font-size:13px;outline:none;text-align:center;transition:border-color 0.15s;margin-bottom:0;}
+  #confirmTypeInput:focus{border-color:var(--accent);}
+  #confirmTypeInput.valid{border-color:var(--green);}
   /* TOAST */
   .toast{position:fixed;bottom:22px;right:22px;background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--accent);padding:11px 16px;border-radius:20px;font-size:12px;font-family:var(--font);z-index:9999;transform:translateX(120%);transition:transform 0.3s;max-width:320px;line-height:1.5;}
   .toast.show{transform:translateX(0);}
@@ -736,6 +748,7 @@ function createPolygonAuto(pts, color) {
   _addZoneLayers(poly);
   _addZoneLabel(poly);
   renderPolygonList();
+  _rebuildAllLabels();
   persistZones();
   showToast(`Zone ${letter} created — ${name}`, 'success');
 }
@@ -963,27 +976,111 @@ async function loadCountyBoundaryOnly(stateAbbr, countyName) {
   } catch(e) {}
 }
 
+
+// ═══════════════════════════════════════════════════════
+// CUSTOM CONFIRM DIALOGS
+// ═══════════════════════════════════════════════════════
+let _confirmResolve = null;
+
+function _showConfirm({ title, sub, okLabel = 'Delete', typePhrase = null }) {
+  return new Promise(resolve => {
+    _confirmResolve = resolve;
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmSub').textContent = sub;
+    document.getElementById('confirmOkBtn').textContent = okLabel;
+
+    const typeWrap = document.getElementById('confirmTypeWrap');
+    const typeInput = document.getElementById('confirmTypeInput');
+
+    if (typePhrase) {
+      typeWrap.style.display = '';
+      document.getElementById('confirmTypePhrase').textContent = '"' + typePhrase + '"';
+      typeInput.value = '';
+      typeInput.classList.remove('valid');
+      // Enable/disable OK based on match
+      _updateConfirmOk(typePhrase);
+      typeInput.oninput = () => _updateConfirmOk(typePhrase);
+      document.getElementById('confirmOkBtn').disabled = true;
+      document.getElementById('confirmOkBtn').style.opacity = '0.4';
+    } else {
+      typeWrap.style.display = 'none';
+      typeInput.oninput = null;
+      document.getElementById('confirmOkBtn').disabled = false;
+      document.getElementById('confirmOkBtn').style.opacity = '1';
+    }
+
+    document.getElementById('confirmModal').classList.add('open');
+    if (typePhrase) setTimeout(() => typeInput.focus(), 120);
+  });
+}
+
+function _updateConfirmOk(phrase) {
+  const input = document.getElementById('confirmTypeInput');
+  const ok = document.getElementById('confirmOkBtn');
+  const match = input.value.trim().toLowerCase() === phrase.toLowerCase();
+  input.classList.toggle('valid', match);
+  ok.disabled = !match;
+  ok.style.opacity = match ? '1' : '0.4';
+}
+
+function _closeConfirm(result) {
+  document.getElementById('confirmModal').classList.remove('open');
+  document.getElementById('confirmTypeInput').oninput = null;
+  if (_confirmResolve) { _confirmResolve(result); _confirmResolve = null; }
+}
+
+document.getElementById('confirmCancelBtn').addEventListener('click', () => _closeConfirm(false));
+document.getElementById('confirmOkBtn').addEventListener('click', () => {
+  if (!document.getElementById('confirmOkBtn').disabled) _closeConfirm(true);
+});
+// Close on overlay click
+document.getElementById('confirmModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) _closeConfirm(false);
+});
+// Enter key submits if OK is enabled
+document.getElementById('confirmTypeInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !document.getElementById('confirmOkBtn').disabled) _closeConfirm(true);
+});
+
 // ═══════════════════════════════════════════════════════
 // DELETE
 // ═══════════════════════════════════════════════════════
-function deletePoly(id, skipConfirm) {
+async function deletePoly(id, skipConfirm) {
   const i = polygons.findIndex(p => p.id === id);
   if (i === -1) return;
   const p = polygons[i];
-  if (!skipConfirm && !confirm(`Are you sure you want to delete Zone ${p.letter} (${p.name})?\n\nThis action cannot be undone.`)) return;
+  if (!skipConfirm) {
+    const fullState = abbrToFullName(p.stateAbbr) || p.stateAbbr;
+    const confirmed = await _showConfirm({
+      title: `Delete Zone ${p.letter} in ${p.countyName} County, ${fullState}?`,
+      sub: 'This action cannot be undone.',
+      okLabel: 'Delete'
+    });
+    if (!confirmed) return;
+  }
   _removeZoneLabel(p);
   if (p.handles) p.handles.forEach(h => { if (h && h.remove) h.remove(); });
   _removeZoneLayers(id);
   properties.forEach(prop => { if (prop.zone === p.name) { _markerColor(prop.marker, '#f7c948'); prop.zone = null; } });
   polygons.splice(i, 1);
-  renderPolygonList(); persistZones();
+  renderPolygonList(); persistZones(); _rebuildAllLabels();
 }
 
-function deleteCounty(stateAbbr, countyName, evt) {
+async function deleteCounty(stateAbbr, countyName, evt) {
   if (evt) evt.stopPropagation();
   const toDelete = polygons.filter(p => p.stateAbbr === stateAbbr && p.countyName === countyName);
   if (!toDelete.length) return;
-  if (!confirm(`Delete all ${toDelete.length} zone${toDelete.length>1?'s':''} in ${countyName} County, ${abbrToFullName(stateAbbr)}?\n\nThis action cannot be undone.`)) return;
+  const fullState = abbrToFullName(stateAbbr) || stateAbbr;
+  const multi = toDelete.length > 1;
+  const zoneList = toDelete.map(p => `Zone ${p.letter}`).join(', ');
+  const title = multi
+    ? `Delete all zones in ${countyName} County, ${fullState}?`
+    : `Delete Zone ${toDelete[0].letter} in ${countyName} County, ${fullState}?`;
+  const sub = multi
+    ? `This will delete ${zoneList}. This action cannot be undone.`
+    : 'This action cannot be undone.';
+  const confirmed = await _showConfirm({ title, sub, okLabel: 'Delete' });
+  if (!confirmed) return;
   toDelete.forEach(p => {
     _removeZoneLabel(p);
     if (p.handles) p.handles.forEach(h => { if (h && h.remove) h.remove(); });
@@ -991,16 +1088,30 @@ function deleteCounty(stateAbbr, countyName, evt) {
     properties.forEach(prop => { if (prop.zone === p.name) { _markerColor(prop.marker, '#f7c948'); prop.zone = null; } });
   });
   polygons = polygons.filter(p => !(p.stateAbbr === stateAbbr && p.countyName === countyName));
-  renderPolygonList(); persistZones();
+  renderPolygonList(); persistZones(); _rebuildAllLabels();
 }
 
-function clearAllZones() {
+async function clearAllZones() {
   if (!polygons.length) return;
-  if (!confirm('Delete ALL zones? This cannot be undone.')) return;
+  // Step 1 — initial warning
+  const step1 = await _showConfirm({
+    title: 'Delete ALL saved zones?',
+    sub: 'This action will delete ALL saved zones. Are you sure you want to do that? This cannot be undone.',
+    okLabel: 'OK'
+  });
+  if (!step1) return;
+  // Step 2 — type to confirm
+  const step2 = await _showConfirm({
+    title: 'Type to confirm deletion',
+    sub: 'This is permanent and cannot be undone.',
+    okLabel: 'Delete',
+    typePhrase: 'Delete all saved zones'
+  });
+  if (!step2) return;
   polygons.forEach(p => { _removeZoneLabel(p); if (p.handles) p.handles.forEach(h=>{if(h&&h.remove)h.remove();}); _removeZoneLayers(p.id); });
   polygons = [];
   properties.forEach(prop => { if (prop.zone) { _markerColor(prop.marker, '#f7c948'); prop.zone = null; } });
-  renderPolygonList(); persistZones();
+  renderPolygonList(); persistZones(); _rebuildAllLabels();
   showToast('All zones cleared', 'info');
 }
 
@@ -1391,5 +1502,22 @@ map.on('load', () => {
   }
 });
 </script>
+
+<!-- Custom Confirm Modal -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal" style="text-align:center">
+    <span class="confirm-icon" id="confirmIcon">⚠️</span>
+    <div class="confirm-title" id="confirmTitle"></div>
+    <div class="confirm-sub" id="confirmSub"></div>
+    <div class="confirm-type-wrap" id="confirmTypeWrap" style="display:none">
+      <div class="confirm-type-label">Type <strong id="confirmTypePhrase"></strong> to confirm</div>
+      <input type="text" id="confirmTypeInput" placeholder="" autocomplete="off">
+    </div>
+    <div class="modal-actions" style="justify-content:center;margin-top:18px;gap:10px">
+      <button class="btn btn-ghost" id="confirmCancelBtn">Cancel</button>
+      <button class="btn btn-danger" id="confirmOkBtn" style="border:1px solid var(--accent2);background:var(--accent2);color:#fff;opacity:1">OK</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
