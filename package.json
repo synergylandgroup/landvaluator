@@ -1,0 +1,8 @@
+{
+  "name": "countyzone-pro",
+  "version": "1.0.0",
+  "description": "CountyZone Pro - Netlify Functions",
+  "dependencies": {
+    "googleapis": "^140.0.0"
+  }
+}
