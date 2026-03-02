@@ -211,6 +211,7 @@
   <div class="status-text" id="statusText">NOT CONNECTED</div>
   <div class="header-actions">
     <button class="btn btn-ghost" onclick="shareURL()" title="Copy shareable link">🔗 Share</button>
+    <button class="btn btn-ghost" id="btnTogglePins" onclick="togglePins()" title="Show/hide property pins" style="display:none">📍 Hide Pins</button>
     <button class="btn btn-secondary" onclick="openSheetsModal()">⚙ Sheets</button>
     <button class="btn btn-primary" onclick="runAssignment()">▶ Assign</button>
     <button class="btn btn-danger" onclick="exportCSV()">↓ CSV</button>
@@ -548,7 +549,7 @@ function _addZoneLayers(poly) {
     map.addLayer({ id:_fillId(id), type:'fill', source:_srcId(id), paint:{'fill-color':color,'fill-opacity':0.2} });
   if (!map.getLayer(_lineId(id)))
     map.addLayer({ id:_lineId(id), type:'line', source:_srcId(id), paint:{'line-color':color,'line-width':2} });
-  map.on('click', _fillId(id), e => { e.preventDefault(); openZoneDescModal(id); });
+  // Polygon fill click intentionally disabled — use zone label to open notes
   map.on('mouseenter', _fillId(id), () => { if (!drawMode) map.getCanvas().style.cursor = 'grab'; });
   map.on('mouseleave', _fillId(id), () => { if (!drawMode) map.getCanvas().style.cursor = ''; });
 }
@@ -842,8 +843,11 @@ function saveZoneEditor() {
   const label = p.allZones ? `Zone ${p.letter} saved (ALL zones pricing)` : `Zone ${p.letter} saved`;
   showToast(label, 'success');
 
-  // Write pricing to sheet if connected
-  if (sheetConfig.sheetId && p.pricingTiers && p.pricingTiers.length) {
+  // Write pricing to sheet if connected — use freshest per-county config
+  const _pSa = document.getElementById('stateSelect').value;
+  const _pCn = document.getElementById('countySelect').value;
+  const _pCfg = (_pSa && _pCn) ? (_getSheetConfig(_pSa, _pCn) || sheetConfig) : sheetConfig;
+  if (_pCfg && _pCfg.sheetId && p.pricingTiers && p.pricingTiers.length) {
     const zoneLabel = p.allZones ? 'ALL' : p.letter;
     const tiers = p.pricingTiers
       .filter(t => t.pricePerAcre !== '' && t.pricePerAcre !== undefined)
@@ -853,7 +857,7 @@ function saveZoneEditor() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sheetId: sheetConfig.sheetId,
+          sheetId: _pCfg.sheetId,
           tiers,
         }),
       }).then(r => r.json()).then(data => {
@@ -1364,11 +1368,16 @@ function loadPropertiesFromFunction(props) {
     const { lat, lng, apn, address, city, state, zip, acreage, zone, rowIndex } = prop;
     const loc = [address, city, state, zip].filter(Boolean).join(', ');
     const el = document.createElement('div');
-    el.style.cssText = 'width:10px;height:10px;border-radius:50%;background:#f7c948;border:1.5px solid rgba(0,0,0,0.4);cursor:pointer;';
+    el.style.cssText = 'width:10px;height:10px;border-radius:50%;background:#f7c948;border:1.5px solid rgba(0,0,0,0.4);cursor:pointer;z-index:1;position:relative;';
     const marker = new mapboxgl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
     properties.push({ lat, lng, apn, address, city, state, zip, acreage, zone: zone || null, rowIndex, marker });
   });
   document.getElementById('statProps').textContent = properties.length;
+  // Show pin toggle button now that pins are loaded
+  const toggleBtn = document.getElementById('btnTogglePins');
+  if (toggleBtn) toggleBtn.style.display = '';
+  _pinsVisible = true;
+  if (toggleBtn) toggleBtn.textContent = '📍 Hide Pins';
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1410,14 +1419,19 @@ async function runAssignment() {
   showToast(`${assigned} properties assigned — writing to sheet...`, 'info');
 
   // Step 2 — write zone letters back to sheet via Netlify function
-  if (assignments.length && sheetConfig.sheetId) {
+  // Always get freshest config from the per-county map
+  const sa = document.getElementById('stateSelect').value;
+  const cn = document.getElementById('countySelect').value;
+  const activeCfg = (sa && cn) ? (_getSheetConfig(sa, cn) || sheetConfig) : sheetConfig;
+
+  if (assignments.length && activeCfg && activeCfg.sheetId) {
     try {
       const r = await fetch('/.netlify/functions/sheets-write-zones', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sheetId:   sheetConfig.sheetId,
-          sheetName: sheetConfig.sheetName || 'LI Raw Dataset',
+          sheetId:   activeCfg.sheetId,
+          sheetName: activeCfg.sheetName || 'LI Raw Dataset',
           assignments,
         }),
       });
@@ -1432,6 +1446,16 @@ async function runAssignment() {
   }
 }
 function _markerColor(m, c) { if (m) m.getElement().style.background = c; }
+
+let _pinsVisible = true;
+function togglePins() {
+  _pinsVisible = !_pinsVisible;
+  properties.forEach(p => {
+    if (p.marker) p.marker.getElement().style.display = _pinsVisible ? '' : 'none';
+  });
+  const btn = document.getElementById('btnTogglePins');
+  if (btn) btn.textContent = _pinsVisible ? '📍 Hide Pins' : '📍 Show Pins';
+}
 
 // ═══════════════════════════════════════════════════════
 // EXPORT CSV
@@ -1607,7 +1631,15 @@ map.on('load', () => {
   if (appState && appState.state) {
     stateSelect.value = appState.state;
     loadCounties().then(() => {
-      if (appState.county) document.getElementById('countySelect').value = appState.county;
+      if (appState.county) {
+        document.getElementById('countySelect').value = appState.county;
+        // Restore active sheetConfig for this county
+        const saved = _getSheetConfig(appState.state, appState.county);
+        if (saved) {
+          sheetConfig = saved;
+          setConnected(true);
+        }
+      }
     });
   }
 });
