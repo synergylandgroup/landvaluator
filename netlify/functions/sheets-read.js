@@ -1,4 +1,5 @@
 // netlify/functions/sheets-read.js
+// Reads property data from "LI Raw Dataset" tab
 // Uses Google Sheets REST API via fetch — no googleapis package needed
 
 exports.handler = async (event) => {
@@ -11,17 +12,31 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
 
   try {
-    const { sheetId, sheetName = 'LI Raw Dataset' } = JSON.parse(event.body || '{}');
+    const { sheetId, sheetName = 'LI Raw Dataset', metaOnly } = JSON.parse(event.body || '{}');
     if (!sheetId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'sheetId required' }) };
 
     const token = await getAccessToken();
+
+    // Always fetch spreadsheet metadata for title
+    const metaUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=properties.title`;
+    const metaRes = await fetch(metaUrl, { headers: { Authorization: `Bearer ${token}` } });
+    let spreadsheetTitle = sheetId;
+    if (metaRes.ok) {
+      const metaData = await metaRes.json();
+      spreadsheetTitle = metaData.properties?.title || sheetId;
+    }
+
+    if (metaOnly) {
+      return { statusCode: 200, headers, body: JSON.stringify({ spreadsheetTitle, totalRows: 0, properties: [] }) };
+    }
+
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(sheetName)}`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) throw new Error(`Sheets API ${res.status}: ${await res.text()}`);
 
     const data = await res.json();
     const rows = data.values || [];
-    if (rows.length < 2) return { statusCode: 200, headers, body: JSON.stringify({ properties: [], totalRows: 0 }) };
+    if (rows.length < 2) return { statusCode: 200, headers, body: JSON.stringify({ spreadsheetTitle, properties: [], totalRows: 0 }) };
 
     const headerRow = rows[0];
     const dataRows = rows.slice(1);
@@ -53,7 +68,7 @@ exports.handler = async (event) => {
       });
     });
 
-    return { statusCode: 200, headers, body: JSON.stringify({ properties, totalRows: dataRows.length }) };
+    return { statusCode: 200, headers, body: JSON.stringify({ spreadsheetTitle, properties, totalRows: dataRows.length }) };
   } catch (err) {
     console.error('sheets-read error:', err);
     return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
