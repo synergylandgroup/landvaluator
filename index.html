@@ -17,7 +17,7 @@
   body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh;display:grid;grid-template-rows:56px 1fr;grid-template-columns:320px 1fr;overflow:hidden;}
 
   /* HEADER */
-  header{grid-column:1/-1;background:var(--panel);border-bottom:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,0.06);display:flex;align-items:center;padding:0 16px;gap:10px;flex-wrap:nowrap;overflow:hidden;}
+  header{grid-column:1/-1;background:var(--panel);border-bottom:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,0.06);display:flex;align-items:center;padding:0 16px;gap:10px;}
   .logo{font-family:var(--font);font-size:14px;font-weight:700;letter-spacing:0.06em;color:var(--text);white-space:nowrap;}
   .logo span{color:var(--zone-blue);}
   .hdiv{width:1px;height:22px;background:var(--border);flex-shrink:0;}
@@ -191,6 +191,16 @@
   .mapboxgl-popup-content{padding:0!important;background:transparent!important;box-shadow:none!important;}
   .mapboxgl-popup-tip{display:none!important;}
 
+  .county-sheet-status{display:flex;align-items:center;gap:6px;padding:5px 12px 6px 12px;background:var(--panel2);border-bottom:1px solid var(--border);font-size:11px;}
+  .css-dot{width:7px;height:7px;border-radius:50%;background:#d9534f;flex-shrink:0;}
+  .css-dot.connected{background:var(--green);box-shadow:0 0 5px rgba(45,138,85,0.4);}
+  .css-name{color:var(--muted);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;}
+  .css-name.not-connected{color:#d9534f;}
+  .css-btn{background:none;border:1px solid var(--border);border-radius:12px;padding:2px 7px;font-size:11px;cursor:pointer;color:var(--muted);transition:all 0.15s;}
+  .css-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .zone-file-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+  .zone-file-row .btn{flex:1;min-width:0;font-size:10px;padding:5px 6px;text-align:center;}
+
   @media(max-width:700px){
     body{grid-template-columns:1fr;}
     aside{position:absolute;top:56px;left:0;height:calc(100vh - 56px);width:300px;z-index:500;transform:translateX(-100%);}
@@ -206,24 +216,17 @@
 <header>
   <button id="sidebarToggle" onclick="toggleSidebar()" title="Toggle sidebar">☰</button>
   <div class="logo">COUNTY<span>ZONE</span> <span style="color:var(--muted);font-weight:500">PRO</span></div>
-  <div class="hdiv"></div>
-  <div class="status-dot" id="statusDot"></div>
-  <div class="status-text" id="statusText">NOT CONNECTED</div>
-  <div class="header-actions">
-    <button class="btn btn-ghost" onclick="shareURL()" title="Copy shareable link">🔗 Share</button>
-    <button class="btn btn-secondary" onclick="openSheetsModal()">⚙ Sheets</button>
-    <button class="btn btn-primary" onclick="runAssignment()">▶ Assign</button>
-    <button class="btn btn-danger" onclick="exportCSV()">↓ CSV</button>
-  </div>
 </header>
 
 <aside id="sidebar">
+  <!-- LOCATION + ADD COUNTY -->
   <div class="sidebar-section">
     <div class="section-label">Location</div>
     <select id="stateSelect" onchange="loadCounties()"><option value="">— Select State —</option></select>
     <select id="countySelect" onchange="loadCounty()"><option value="">— Select County —</option></select>
   </div>
 
+  <!-- STATS BAR -->
   <div class="stats-bar" style="border-bottom:1px solid var(--border)">
     <div class="stat"><div class="stat-val" id="statStates">0</div><div class="stat-label">States</div></div>
     <div class="stat"><div class="stat-val" id="statPolygons">0</div><div class="stat-label">Zones</div></div>
@@ -231,6 +234,7 @@
     <div class="stat"><div class="stat-val" id="statAssigned">0</div><div class="stat-label">Assigned</div></div>
   </div>
 
+  <!-- CREATE ZONES -->
   <div class="sidebar-section">
     <div class="section-label">Create Zones</div>
     <button class="draw-btn" id="btnPolygon" onclick="startDraw('polygon')"><span style="font-size:14px">⬡</span> Draw Polygon</button>
@@ -239,12 +243,14 @@
     <div class="section-label" style="margin-top:10px">Zone Color</div>
     <div class="color-row" id="colorRow"></div>
     <div class="zone-file-row">
-      <button class="btn btn-ghost" onclick="saveZonesFile()">💾 Save Zones</button>
-      <button class="btn btn-ghost" onclick="loadZonesFile()">📂 Load Zones</button>
+      <button class="btn btn-ghost" onclick="saveZonesFile()" title="Export zones to JSON file">💾 Save Zones</button>
+      <button class="btn btn-ghost" onclick="loadZonesFile()" title="Import zones from JSON file">📂 Load Zones</button>
+      <button class="btn btn-ghost" onclick="exportCSV()" title="Download properties as CSV">↓ CSV</button>
     </div>
     <input type="file" id="zoneFileInput" accept=".json" style="display:none" onchange="importZonesFile(event)">
   </div>
 
+  <!-- SAVED ZONES HEADER -->
   <div style="padding:9px 14px 0;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;">
     <span class="section-label" style="margin:0">Saved Zones</span>
     <span style="background:var(--accent-light);color:var(--accent);font-family:var(--font);font-size:11px;font-weight:700;padding:2px 9px;border-radius:8px" id="zoneCount">0</span>
@@ -315,11 +321,7 @@
       <div>
         <div class="ze-title" id="zeTitle">Zone Info</div>
       </div>
-      <label style="margin-left:auto;display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap" title="Apply these tiers to ALL zones in this county">
-        <input type="checkbox" id="zeAllZones" style="width:14px;height:14px;accent-color:var(--zone-blue);cursor:pointer">
-        Apply to ALL zones
-      </label>
-      <button class="btn btn-ghost" style="margin-left:10px;padding:4px 10px;font-size:11px;background:#fff" onclick="closeZoneEditor()">✕ Close</button>
+      <button class="btn btn-ghost" style="margin-left:auto;padding:4px 10px;font-size:11px;background:#fff" onclick="closeZoneEditor()">✕ Close</button>
     </div>
 
     <!-- General Notes -->
@@ -343,12 +345,11 @@
     </div>
     <div class="ze-table-foot">
       <button class="ze-add-btn" onclick="zeAddRow()">+ Add Row</button>
-      <button class="ze-add-btn" onclick="syncAllPricingToSheet()" style="background:#edf2f8;color:var(--zone-blue);border-color:var(--zone-blue)" title="Write all zone pricing to Google Sheet">↑ Sync All to Sheet</button>
     </div>
 
     <div class="modal-actions" style="margin-top:14px">
       <button class="btn btn-ghost" onclick="closeZoneEditor()">CANCEL</button>
-      <button class="btn btn-primary" onclick="saveZoneEditor()">💾 SAVE ZONE DATA</button>
+      <button class="btn btn-primary" onclick="saveAndSyncZone()" id="zeSaveBtn">💾 Save &amp; Sync</button>
     </div>
   </div>
 </div>
@@ -356,6 +357,85 @@
 <div class="toast" id="toast"></div>
 
 <script>
+
+// ═══════════════════════════════════════════════════════
+// STORAGE ADAPTER
+// ─────────────────────────────────────────────────────
+// All app persistence flows through these functions.
+// Currently backed by localStorage.
+//
+// SUPABASE MIGRATION: Replace the body of each function
+// below with Supabase client calls. The rest of the app
+// does not need to change.
+//
+// Supabase tables needed:
+//   zones        (id, user_id, state_abbr, county_name, data jsonb)
+//   sheet_configs(id, user_id, state_abbr, county_name, config jsonb)
+//   app_state    (id, user_id, state_abbr, county_name)
+//
+// Example Supabase swap for DB_saveZones:
+//   const { error } = await supabase.from('zones').upsert({ user_id: currentUser.id, data: zones });
+// ═══════════════════════════════════════════════════════
+
+const DB = {
+  // ── Zones ──────────────────────────────────────────
+  saveZones(zones) {
+    // SUPABASE: await supabase.from('zones').upsert({ user_id, data: zones })
+    try { localStorage.setItem('geofence_zones', JSON.stringify(zones)); } catch(e) {}
+  },
+
+  loadZones() {
+    // SUPABASE: const { data } = await supabase.from('zones').select('data').eq('user_id', user_id).single()
+    try { const r = localStorage.getItem('geofence_zones'); return r ? JSON.parse(r) : null; } catch(e) { return null; }
+  },
+
+  // ── Sheet Configs ───────────────────────────────────
+  saveSheetConfigs(configs) {
+    // SUPABASE: await supabase.from('sheet_configs').upsert({ user_id, configs })
+    try { localStorage.setItem('geofence_sheet_configs', JSON.stringify(configs)); } catch(e) {}
+  },
+
+  loadSheetConfigs() {
+    // SUPABASE: const { data } = await supabase.from('sheet_configs').select('configs').eq('user_id', user_id).single()
+    try { const r = localStorage.getItem('geofence_sheet_configs'); return r ? JSON.parse(r) : null; } catch(e) { return null; }
+  },
+
+  // ── App State ───────────────────────────────────────
+  saveAppState(state) {
+    // SUPABASE: await supabase.from('app_state').upsert({ user_id, ...state })
+    try { localStorage.setItem('geofence_app_state', JSON.stringify(state)); } catch(e) {}
+  },
+
+  loadAppState() {
+    // SUPABASE: const { data } = await supabase.from('app_state').select('*').eq('user_id', user_id).single()
+    try { const r = localStorage.getItem('geofence_app_state'); return r ? JSON.parse(r) : null; } catch(e) { return null; }
+  },
+
+  // ── County List Cache ───────────────────────────────
+  // (keep in localStorage even after Supabase migration — this is just a UI cache)
+  saveCountyCache(abbr, counties) {
+    try { localStorage.setItem('counties_'+abbr, JSON.stringify({counties, abbr, ts: Date.now()})); } catch(e) {}
+  },
+
+  loadCountyCache(abbr) {
+    try { const s = localStorage.getItem('counties_'+abbr); return s ? JSON.parse(s) : null; } catch(e) { return null; }
+  },
+
+  clearCountyCache(abbr) {
+    try { localStorage.removeItem('counties_'+abbr); } catch(e) {}
+  },
+
+  // ── UI State (collapse/expand) ──────────────────────
+  // SUPABASE: await supabase.from('ui_state').upsert({ user_id, key, value })
+  saveUIState(key, value) {
+    try { localStorage.setItem('czp_ui_'+key, JSON.stringify(value)); } catch(e) {}
+  },
+
+  loadUIState(key, fallback = null) {
+    try { const r = localStorage.getItem('czp_ui_'+key); return r !== null ? JSON.parse(r) : fallback; } catch(e) { return fallback; }
+  },
+};
+
 // ═══════════════════════════════════════════════════════
 // STATES DATA
 // ═══════════════════════════════════════════════════════
@@ -394,7 +474,7 @@ function _getSheetConfig(stateAbbr, countyName) {
 
 function _setSheetConfig(stateAbbr, countyName, cfg) {
   sheetConfigs[_countyKey(stateAbbr, countyName)] = cfg;
-  try { localStorage.setItem('geofence_sheet_configs', JSON.stringify(sheetConfigs)); } catch(e) {}
+  DB.saveSheetConfigs(sheetConfigs);
 }
 let countySourceId = null;
 const _countyLayers = {}; // key -> sourceId for all counties with zones
@@ -567,8 +647,26 @@ function _restoreAllZoneLayers() { polygons.forEach(p => _addZoneLayers(p)); }
 const COUNTY_PILL_ZOOM = 9;
 
 function _polyCenter(poly) {
-  const lngs = poly.points.map(p=>p[0]), lats = poly.points.map(p=>p[1]);
-  return [(Math.min(...lngs)+Math.max(...lngs))/2, (Math.min(...lats)+Math.max(...lats))/2];
+  // True centroid using polygon area formula (handles non-convex shapes)
+  const pts = poly.points;
+  let cx = 0, cy = 0, area = 0;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const xi = pts[i][0], yi = pts[i][1];
+    const xj = pts[j][0], yj = pts[j][1];
+    const cross = xi * yj - xj * yi;
+    area += cross;
+    cx += (xi + xj) * cross;
+    cy += (yi + yj) * cross;
+  }
+  area /= 2;
+  if (Math.abs(area) < 1e-10) {
+    // Fallback to bounding box center for degenerate polygons
+    const lngs = pts.map(p=>p[0]), lats = pts.map(p=>p[1]);
+    return [(Math.min(...lngs)+Math.max(...lngs))/2, (Math.min(...lats)+Math.max(...lats))/2];
+  }
+  cx /= (6 * area);
+  cy /= (6 * area);
+  return [cx, cy];
 }
 
 // County pill markers — keyed by "stateAbbr|countyName"
@@ -580,7 +678,7 @@ function _addZoneLabel(poly) {
   const el = document.createElement('div');
   el.className = 'zone-label';
   el.innerHTML = `<span class="zl-letter" style="color:var(--zone-blue,#2c5282)">ZONE ${poly.letter||''}</span><span class="zl-name">${poly.name||''}</span>`;
-  el.title = 'Click to open the Notes and Pricing panel';
+  el.title = 'Click to open pricing panel';
   // Single click on zone label = open Notes & Pricing
   // Guard: do nothing if a county button was just clicked
   el.addEventListener('click', (e) => {
@@ -845,6 +943,170 @@ function closeZoneEditor() {
   _editingDescId = null;
 }
 
+
+// ── Fetch live spreadsheet name from Google Sheets API ──
+async function _fetchSheetName(sheetId, stateAbbr, countyName) {
+  try {
+    const r = await fetch('/.netlify/functions/sheets-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheetId, sheetName: 'LI Raw Dataset', metaOnly: true }),
+    });
+    const data = await r.json();
+    const name = data.spreadsheetTitle || data.sheetTitle || sheetId;
+    const records = data.totalRows || '?';
+    const id = `sheetname-${stateAbbr}-${countyName.replace(/\s/g,'-')}`;
+    const el = document.getElementById(id);
+    if (el) el.textContent = `${name} • ${records.toLocaleString()} records`;
+  } catch(e) {}
+}
+
+// ── Open sheets modal pre-set to a specific county ──
+function openSheetsModalForCounty(stateAbbr, countyName, e) {
+  if (e) e.stopPropagation();
+  // Switch to this county first
+  const ss = document.getElementById('stateSelect');
+  const cs = document.getElementById('countySelect');
+  if (ss.value !== stateAbbr) {
+    ss.value = stateAbbr;
+    loadCounties(true).then(() => {
+      cs.value = countyName;
+      openSheetsModal();
+    });
+  } else {
+    cs.value = countyName;
+    openSheetsModal();
+  }
+}
+
+// ── Share a single county via short URL ──
+async function shareCounty(stateAbbr, countyName, e) {
+  if (e) e.stopPropagation();
+  const countyPolys = polygons.filter(p => p.stateAbbr === stateAbbr && p.countyName === countyName);
+  if (!countyPolys.length) { showToast('No zones to share for this county', 'error'); return; }
+  showToast('Generating share link...', 'info');
+  try {
+    const payload = { version: 2, stateAbbr, countyName, zones: countyPolys.map(_polyToJSON) };
+    const r = await fetch('/.netlify/functions/share-save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await r.json();
+    if (!data.id) throw new Error(data.error || 'No ID returned');
+    const url = `${window.location.origin}${window.location.pathname}?share=${data.id}`;
+    navigator.clipboard.writeText(url)
+      .then(() => showToast(`Link copied! ${url}`, 'success'))
+      .catch(() => {
+        const b = document.getElementById('shareBanner');
+        b.textContent = '🔗 ' + url; b.style.display = 'block';
+        setTimeout(() => b.style.display = 'none', 12000);
+      });
+  } catch(err) { showToast('Share failed: ' + err.message, 'error'); }
+}
+
+// ── Load zones from short share URL ──
+async function loadZonesFromShareId(shareId) {
+  try {
+    const r = await fetch('/.netlify/functions/share-load?id=' + shareId);
+    const data = await r.json();
+    if (!data.zones) throw new Error('No zones in share');
+    data.zones.forEach(d => _loadZone(d));
+    renderPolygonList(); persistZones(); _rebuildAllLabels();
+    if (polygons.length) {
+      const b = new mapboxgl.LngLatBounds();
+      polygons.forEach(p => p.points.forEach(pt => b.extend(pt)));
+      map.fitBounds(b, { padding:60 });
+      showToast(`Loaded shared zones for ${data.countyName} County, ${data.stateAbbr}`, 'success');
+    }
+    return true;
+  } catch(e) { showToast('Could not load shared zones', 'error'); return false; }
+}
+
+// ── Save & Sync: save pricing + assign + write zones + sync pricing ──
+async function saveAndSyncZone() {
+  if (!_editingDescId) return;
+  const p = polygons.find(p => p.id === _editingDescId);
+  if (!p) return;
+
+  const btn = document.getElementById('zeSaveBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Saving...'; }
+
+  // 1. Save locally
+  p.description = document.getElementById('zeNotes').value.trim();
+  p.pricingTiers = zeCollectRows();
+  p.allZones = false;
+  persistZones();
+  closeZoneEditor();
+  showToast(`Zone ${p.letter} saved — syncing...`, 'info');
+
+  const sa = document.getElementById('stateSelect').value;
+  const cn = document.getElementById('countySelect').value;
+  const cfg = (sa && cn) ? (_getSheetConfig(sa, cn) || sheetConfig) : sheetConfig;
+
+  if (!cfg || !cfg.sheetId) {
+    showToast(`Zone ${p.letter} saved locally (no sheet connected)`, 'success');
+    if (btn) { btn.disabled = false; btn.innerHTML = '💾 Save &amp; Sync'; }
+    return;
+  }
+
+  try {
+    // 2. Run zone assignment
+    const assignments = [];
+    let assigned = 0;
+    properties.forEach(prop => {
+      prop.zone = null;
+      for (const poly of polygons) {
+        if (pointInPolygon(prop.lat, prop.lng, poly.points)) {
+          prop.zone = poly.letter;
+          poly.propCount = (poly.propCount || 0) + 1;
+          assigned++;
+          if (prop.rowIndex) assignments.push({ rowIndex: prop.rowIndex, zone: poly.letter });
+          break;
+        }
+      }
+    });
+    document.getElementById('statAssigned').textContent = assigned;
+    renderPolygonList();
+
+    // 3. Write zone letters to sheet
+    if (assignments.length) {
+      const zr = await fetch('/.netlify/functions/sheets-write-zones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheetId: cfg.sheetId, sheetName: cfg.sheetName || 'LI Raw Dataset', assignments }),
+      });
+      const zd = await zr.json();
+      if (!zr.ok) throw new Error(zd.error || 'Zone write failed');
+    }
+
+    // 4. Sync all pricing tiers
+    const countyPolys = polygons.filter(poly => !poly.stateAbbr || (poly.stateAbbr === sa && poly.countyName === cn));
+    const allTiers = [];
+    countyPolys.slice().sort((a,b) => (a.letter||'').localeCompare(b.letter||'')).forEach(poly => {
+      (poly.pricingTiers || [])
+        .filter(t => t.pricePerAcre !== '' && t.pricePerAcre !== undefined && t.pricePerAcre !== null)
+        .sort((a,b) => parseFloat(a.minAcres||0) - parseFloat(b.minAcres||0))
+        .forEach(t => allTiers.push({ zone: poly.letter, minAcres: t.minAcres, maxAcres: t.maxAcres, pricePerAcre: t.pricePerAcre }));
+    });
+
+    if (allTiers.length) {
+      const pr = await fetch('/.netlify/functions/sheets-write-pricing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheetId: cfg.sheetId, tiers: allTiers }),
+      });
+      const pd = await pr.json();
+      if (!pd.success) throw new Error(pd.error || 'Pricing sync failed');
+    }
+
+    showToast(`Zone ${p.letter} saved — ${assigned} assigned, pricing synced ✓`, 'success');
+  } catch(err) {
+    showToast('Sync error: ' + err.message, 'error');
+  }
+  if (btn) { btn.disabled = false; btn.innerHTML = '💾 Save &amp; Sync'; }
+}
+
 function saveZoneEditor() {
   if (!_editingDescId) return;
   const p = polygons.find(p => p.id === _editingDescId);
@@ -994,28 +1256,61 @@ function renderPolygonList() {
     const stateDiv = document.createElement('div');
     stateDiv.className = 'state-group';
 
+    const stateOpenKey = 'state_open_' + stateAbbr;
+    const isStateOpen = DB.loadUIState(stateOpenKey, true); // default open
+
     const hdr = document.createElement('div');
-    hdr.className = 'state-header open';
+    hdr.className = 'state-header' + (isStateOpen ? ' open' : '');
     hdr.innerHTML = `<span class="sg-arrow">▶</span><span style="flex:1">${fullName}</span><span style="font-size:10px;color:var(--muted);font-weight:400">${totalZones} zone${totalZones!==1?'s':''}</span>`;
-    hdr.onclick = () => { hdr.classList.toggle('open'); countiesDiv.classList.toggle('open'); };
+    hdr.onclick = () => {
+      hdr.classList.toggle('open');
+      countiesDiv.classList.toggle('open');
+      DB.saveUIState(stateOpenKey, hdr.classList.contains('open'));
+    };
 
     const countiesDiv = document.createElement('div');
-    countiesDiv.className = 'state-counties open';
+    countiesDiv.className = 'state-counties' + (isStateOpen ? ' open' : '');
 
     Object.keys(byState[stateAbbr]).sort().forEach(countyName => {
       const cPolys = byState[stateAbbr][countyName];
       const cGroup = document.createElement('div');
       cGroup.className = 'county-group';
 
+      const cCfg = _getSheetConfig(stateAbbr, countyName);
       const cHdr = document.createElement('div');
       cHdr.className = 'county-header';
       cHdr.innerHTML = `
-        <span style="flex:1">${countyName} County</span>
-        <span style="font-size:10px;margin-right:4px;font-weight:400">${cPolys.length}z</span>
+        <span style="flex:1;font-weight:600">${countyName} County</span>
+        <span style="font-size:10px;margin-right:4px;font-weight:400;color:var(--muted)">${cPolys.length} zone${cPolys.length!==1?"s":""}</span>
         <button class="poly-btn" title="Delete county zones" style="font-size:11px" onclick="deleteCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">🗑</button>
       `;
+      // Sheet status row
+      const cStatus = document.createElement('div');
+      cStatus.className = 'county-sheet-status';
+      cStatus.dataset.state = stateAbbr;
+      cStatus.dataset.county = countyName;
+      if (cCfg && cCfg.sheetId) {
+        cStatus.innerHTML = `
+          <span class="css-dot connected"></span>
+          <span class="css-name" id="sheetname-${stateAbbr}-${countyName.replace(/\s/g,'-')}">Loading sheet name...</span>
+          <div style="margin-left:auto;display:flex;gap:4px">
+            <button class="css-btn" title="Share this county's zones" onclick="shareCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">🔗</button>
+            <button class="css-btn" title="Manage sheet connection" onclick="openSheetsModalForCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">⚙</button>
+          </div>`;
+        // Fetch sheet name async
+        setTimeout(() => _fetchSheetName(cCfg.sheetId, stateAbbr, countyName), 100);
+      } else {
+        cStatus.innerHTML = `
+          <span class="css-dot"></span>
+          <span class="css-name not-connected">Sheet not connected</span>
+          <div style="margin-left:auto;display:flex;gap:4px">
+            <button class="css-btn" title="Share this county's zones" onclick="shareCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">🔗</button>
+            <button class="css-btn" title="Connect a sheet" onclick="openSheetsModalForCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">⚙</button>
+          </div>`;
+      }
       cHdr.onclick = e => {
-        if (e.target.classList.contains('poly-btn') || e.target.closest('.poly-btn')) return;
+        if (e.target.classList.contains('poly-btn') || e.target.closest('.poly-btn') ||
+            e.target.classList.contains('css-btn') || e.target.closest('.css-btn')) return;
         navigateToCounty(stateAbbr, countyName);
       };
 
@@ -1031,7 +1326,7 @@ function renderPolygonList() {
             <div class="poly-name">ZONE ${p.letter}</div>
             <div class="poly-count">${p.countyName ? p.countyName+' County, '+p.stateAbbr : ''}</div>
           </div>
-          <button class="poly-btn" title="Click to open the Notes and Pricing panel" onclick="openZoneDescModal('${p.id}');event.stopPropagation()">📝</button>
+          <button class="poly-btn" title="Click to open pricing panel" onclick="openZoneDescModal('${p.id}');event.stopPropagation()">📝</button>
           <button class="poly-btn" title="Delete" onclick="deletePoly('${p.id}');event.stopPropagation()">✕</button>
         `;
         div.onclick = () => zoomToZoneAndCounty(p);
@@ -1039,6 +1334,7 @@ function renderPolygonList() {
       });
 
       cGroup.appendChild(cHdr);
+      cGroup.appendChild(cStatus);
       cGroup.appendChild(polyDiv);
       countiesDiv.appendChild(cGroup);
     });
@@ -1240,7 +1536,7 @@ function _polyToJSON(p) {
            color:p.color, points:p.points, description:p.description||'', pricingTiers:p.pricingTiers||[], isRect:!!p._isRect, bounds:p._bounds||null };
 }
 function persistZones() {
-  try { localStorage.setItem('geofence_zones', JSON.stringify(polygons.map(_polyToJSON))); } catch(e) {}
+  DB.saveZones(polygons.map(_polyToJSON));
 }
 async function _loadAllCountyBoundaries() {
   // Find all unique state+county combos that have zones
@@ -1261,7 +1557,8 @@ async function _loadAllCountyBoundaries() {
 
 function restoreZones() {
   try {
-    const raw = localStorage.getItem('geofence_zones'); if (!raw) return;
+    const raw = DB.loadZones(); if (!raw) return;
+    const rawStr = raw;
     const data = JSON.parse(raw);
     data.forEach(d => _loadZone(d));
     renderPolygonList();
@@ -1342,6 +1639,12 @@ function copyShareURL() {
 }
 function loadZonesFromURL() {
   try {
+    const shareId = new URLSearchParams(window.location.search).get('share');
+    if (shareId) {
+      // Load from short share ID after map loads
+      setTimeout(() => loadZonesFromShareId(shareId), 200);
+      return true;
+    }
     const enc = new URLSearchParams(window.location.search).get('zones');
     if (!enc) return false;
     JSON.parse(decodeURIComponent(atob(enc))).forEach(d => _loadZone(d));
@@ -1602,11 +1905,11 @@ async function loadCounties(silent) {
     if (!silent) { const s=loadAppState(); if(s&&s.state===abbr&&s.county) cs.value=s.county; }
   }
   try {
-    const cached = localStorage.getItem('counties_'+abbr);
+    const cached = DB.loadCountyCache(abbr);
     if (cached) {
-      const p = JSON.parse(cached);
-      if (p.counties&&p.abbr===abbr&&Date.now()-p.ts<30*24*60*60*1000) { fill(p.counties); return; }
-      localStorage.removeItem('counties_'+abbr);
+      const p = typeof cached === 'string' ? JSON.parse(cached) : cached;
+      if (p&&p.counties&&p.abbr===abbr&&Date.now()-p.ts<30*24*60*60*1000) { fill(p.counties); return; }
+      DB.clearCountyCache(abbr);
     }
   } catch(e) {}
   try {
@@ -1614,10 +1917,10 @@ async function loadCounties(silent) {
     const data = await (await fetch(`https://api.census.gov/data/2020/dec/pl?get=NAME&for=county:*&in=state:${fips}`)).json();
     const stateName = STATES.find(s=>s[1]===abbr)[0];
     const counties = data.slice(1).map(row=>row[0].replace(`, ${stateName}`,'').replace(/ County$/,'').trim()).sort();
-    try { localStorage.setItem('counties_'+abbr, JSON.stringify({counties,abbr,ts:Date.now()})); } catch(e) {}
+    DB.saveCountyCache(abbr, counties);
     fill(counties);
   } catch(e) {
-    try { const s=localStorage.getItem('counties_'+abbr); if(s){fill(JSON.parse(s).counties);return;} } catch(e2){}
+    try { const _cc=DB.loadCountyCache(abbr); if(_cc){const _ccp=typeof _cc==='string'?JSON.parse(_cc):_cc; fill(_ccp.counties||_ccp);return;} } catch(e2){}
     if (!silent) cs.innerHTML='<option value="">Failed to load</option>';
   }
 }
@@ -1724,10 +2027,10 @@ function showToast(msg, type='info') {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 4500);
 }
 function saveAppState() {
-  try { localStorage.setItem('geofence_app_state', JSON.stringify({state:stateSelect.value, county:document.getElementById('countySelect').value})); } catch(e) {}
+  DB.saveAppState({ state: stateSelect.value, county: document.getElementById('countySelect').value });
 }
 function loadAppState() {
-  try { return JSON.parse(localStorage.getItem('geofence_app_state')); } catch(e) { return null; }
+  return DB.loadAppState();
 }
 
 document.getElementById('sheetsModal').addEventListener('click', e => { if (e.target===e.currentTarget) closeSheetsModal(); });
@@ -1741,10 +2044,8 @@ map.on('load', () => {
   if (!fromURL) restoreZones();
   // Safety net: rebuild after a tick to ensure map is fully ready
   setTimeout(() => { if (polygons.length) { _rebuildAllLabels(); _loadAllCountyBoundaries(); } }, 500);
-  try {
-    const cfgs = JSON.parse(localStorage.getItem('geofence_sheet_configs'));
-    if (cfgs) { sheetConfigs = cfgs; }
-  } catch(e) {}
+  const _savedCfgs = DB.loadSheetConfigs();
+  if (_savedCfgs) { sheetConfigs = _savedCfgs; }
   const appState = loadAppState();
   if (appState && appState.state) {
     stateSelect.value = appState.state;
