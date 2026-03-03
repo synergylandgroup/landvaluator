@@ -1557,14 +1557,14 @@ async function _loadAllCountyBoundaries() {
 
 function restoreZones() {
   try {
-    const raw = DB.loadZones(); if (!raw) return;
-    const rawStr = raw;
-    const data = JSON.parse(raw);
+    const data = DB.loadZones();
+    if (!data || !Array.isArray(data) || !data.length) return;
     data.forEach(d => _loadZone(d));
     renderPolygonList();
     _rebuildAllLabels();
-    if (data.length) showToast(`Restored ${data.length} zone${data.length>1?'s':''}`, 'success');
-  } catch(e) {}
+    showToast(`Restored ${data.length} zone${data.length>1?'s':''}`, 'success');
+    setTimeout(() => _loadAllCountyBoundaries(), 500);
+  } catch(e) { console.error('restoreZones error:', e); }
 }
 function _loadZone(d) {
   const poly = { id:d.id, name:d.name, letter:d.letter||'', stateAbbr:d.stateAbbr||'', countyName:d.countyName||'',
@@ -2017,8 +2017,12 @@ async function loadCounty() {
 // HELPERS
 // ═══════════════════════════════════════════════════════
 function setConnected(v) {
-  document.getElementById('statusDot').className = 'status-dot'+(v?' on':'');
-  document.getElementById('statusText').textContent = v ? 'SHEET CONNECTED' : 'NOT CONNECTED';
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  if (dot) dot.className = 'status-dot'+(v?' on':'');
+  if (txt) txt.textContent = v ? 'SHEET CONNECTED' : 'NOT CONNECTED';
+  // Refresh county status rows to reflect new connection state
+  renderPolygonList();
 }
 let toastTimer;
 function showToast(msg, type='info') {
