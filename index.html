@@ -2071,7 +2071,20 @@ map.on('load', () => {
           }).then(r => r.json()).then(data => {
             if (data.properties && data.properties.length) {
               loadPropertiesFromFunction(data.properties);
-              showToast(`Reconnected — ${data.properties.length} properties loaded`, 'success');
+              // Auto-run assignment to restore zone counts
+              let assigned = 0;
+              properties.forEach(prop => {
+                prop.zone = null;
+                for (const poly of polygons) {
+                  if (pointInPolygon(prop.lat, prop.lng, poly.points)) {
+                    prop.zone = poly.letter;
+                    assigned++;
+                    break;
+                  }
+                }
+              });
+              document.getElementById('statAssigned').textContent = assigned;
+              showToast(`Reconnected — ${data.properties.length} properties, ${assigned} assigned`, 'success');
             }
           }).catch(() => {}); // silent fail on restore — user can reconnect manually
         }
