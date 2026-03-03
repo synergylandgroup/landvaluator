@@ -1740,7 +1740,7 @@ map.on('load', () => {
   const fromURL = loadZonesFromURL();
   if (!fromURL) restoreZones();
   // Safety net: rebuild after a tick to ensure map is fully ready
-  setTimeout(() => { if (polygons.length) _rebuildAllLabels(); }, 150);
+  setTimeout(() => { if (polygons.length) { _rebuildAllLabels(); _loadAllCountyBoundaries(); } }, 500);
   try {
     const cfgs = JSON.parse(localStorage.getItem('geofence_sheet_configs'));
     if (cfgs) { sheetConfigs = cfgs; }
