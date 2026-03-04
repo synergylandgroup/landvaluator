@@ -1,5 +1,5 @@
 // netlify/functions/share-load.js
-// Loads zone data by share ID from Netlify Blobs
+// Loads zone data from Netlify Blobs REST API (no SDK needed)
 
 exports.handler = async (event) => {
   const headers = {
@@ -13,12 +13,24 @@ exports.handler = async (event) => {
     const id = event.queryStringParameters?.id;
     if (!id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'id required' }) };
 
-    const { getStore } = require('@netlify/blobs');
-    const store = getStore('zone-shares');
-    const raw = await store.get(id);
-    if (!raw) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Share not found or expired' }) };
+    const siteId = process.env.NETLIFY_SITE_ID;
+    const token = process.env.NETLIFY_TOKEN || process.env.NETLIFY_BLOBS_TOKEN;
 
-    return { statusCode: 200, headers, body: raw };
+    if (!siteId || !token) {
+      return { statusCode: 503, headers, body: JSON.stringify({ error: 'Blob storage not configured' }) };
+    }
+
+    const blobUrl = `https://api.netlify.com/api/v1/blobs/${siteId}/zone-shares/${id}`;
+    const res = await fetch(blobUrl, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      return { statusCode: 404, headers, body: JSON.stringify({ error: 'Share not found or expired' }) };
+    }
+
+    const data = await res.json();
+    return { statusCode: 200, headers, body: JSON.stringify(data) };
   } catch (err) {
     console.error('share-load error:', err);
     return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
