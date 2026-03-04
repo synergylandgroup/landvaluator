@@ -40,9 +40,7 @@ exports.handler = async (event) => {
 
     if (!res.ok) {
       const err = await res.text();
-      console.error('Blob PUT error:', res.status, err);
-      // Fallback if blob fails
-      return { statusCode: 200, headers, body: JSON.stringify({ id, fallback: true, data: payload }) };
+      return { statusCode: 200, headers, body: JSON.stringify({ id, fallback: true, blobError: res.status + ' ' + err, data: payload }) };
     }
 
     return { statusCode: 200, headers, body: JSON.stringify({ id }) };
