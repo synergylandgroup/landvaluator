@@ -322,8 +322,9 @@ let _countyPillMarkers = {};
 function _addZoneLabel(poly) {
   _removeZoneLabel(poly);
   const el = document.createElement('div');
-  el.className = 'zone-label tip-wrap';
-  el.innerHTML = `<span class="zl-letter" style="color:var(--zone-blue,#2c5282)">ZONE ${poly.letter||''}</span><span class="zl-name">${poly.name||''}</span><span class="tip-box" style="left:50%;transform:translateX(-50%);top:calc(100% + 8px);">Open pricing panel</span>`;
+  el.className = 'zone-label';
+  el.dataset.tooltip = 'Open pricing panel';
+  el.innerHTML = `<span class="zl-letter" style="color:var(--zone-blue,#2c5282)">ZONE ${poly.letter||''}</span><span class="zl-name">${poly.name||''}</span>`;
   // Single click on zone label = open Notes & Pricing
   // Guard: do nothing if a county button was just clicked
   el.addEventListener('click', (e) => {
@@ -369,8 +370,9 @@ function _buildCountyPills() {
     const count = polys.length;
 
     const el = document.createElement('div');
-    el.className = 'zone-cluster tip-wrap';
-    el.innerHTML = `${county} County, ${st}&nbsp;<span class="zc-count">${count}</span><span class="tip-box" style="left:50%;transform:translateX(-50%);top:calc(100% + 8px);">Click to zoom into ${county} County</span>`;
+    el.className = 'zone-cluster';
+    el.dataset.tooltip = `Click to zoom into ${county} County`;
+    el.innerHTML = `${county} County, ${st}&nbsp;<span class="zc-count">${count}</span>`;
 
     // Single click on county pill = zoom into county only, never open notes
     el.addEventListener('click', (e) => {
