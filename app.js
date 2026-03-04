@@ -322,7 +322,7 @@ function _addZoneLabel(poly) {
   const el = document.createElement('div');
   el.className = 'zone-label';
   el.innerHTML = `<span class="zl-letter" style="color:var(--zone-blue,#2c5282)">ZONE ${poly.letter||''}</span><span class="zl-name">${poly.name||''}</span>`;
-  el.title = 'Click to open pricing panel';
+  el.setAttribute('data-tip', 'Click to open pricing panel');
   // Single click on zone label = open Notes & Pricing
   // Guard: do nothing if a county button was just clicked
   el.addEventListener('click', (e) => {
@@ -935,9 +935,9 @@ function renderPolygonList() {
       cHdr.innerHTML = `
         <span class="county-name-text">${countyName} County</span>
         <span class="county-zone-count">${cPolys.length} zone${cPolys.length!==1?"s":""}</span>
-        <span class="tip-wrap"><button class="county-action-btn" onclick="shareCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">🔗</button><span class="tip-box tip-box-up">Copy shareable link for this county</span></span>
-        <span class="tip-wrap"><button class="county-action-btn" onclick="openSheetsModalForCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">⚙</button><span class="tip-box tip-box-up">${isConnected ? 'Manage sheet connection' : 'Connect a sheet'}</span></span>
-        <span class="tip-wrap"><button class="county-action-btn" onclick="deleteCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">🗑</button><span class="tip-box tip-box-up">Delete all zones in this county</span></span>
+        <span class="tip-wrap"><button class="county-action-btn" onclick="shareCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">🔗</button><span class="tip-box tip-box-up" style="left:auto;right:0;transform:none;">Copy shareable link</span></span>
+        <span class="tip-wrap"><button class="county-action-btn" onclick="openSheetsModalForCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">⚙</button><span class="tip-box tip-box-up" style="left:auto;right:0;transform:none;">${isConnected ? 'Manage sheet' : 'Connect a sheet'}</span></span>
+        <span class="tip-wrap"><button class="county-action-btn" onclick="deleteCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">🗑</button><span class="tip-box tip-box-up" style="left:auto;right:0;transform:none;">Delete county zones</span></span>
       `;
 
       // Sheet status row — clean, no gray background
@@ -974,8 +974,8 @@ function renderPolygonList() {
             <div class="poly-name">ZONE ${p.letter}</div>
             <div class="poly-count">${p.countyName ? p.countyName+' County, '+p.stateAbbr : ''}</div>
           </div>
-          <span class="tip-wrap"><button class="poly-btn notes-btn" onclick="openZoneDescModal('${p.id}')">🏷️</button><span class="tip-box tip-box-up">Edit pricing tiers</span></span>
-          <span class="tip-wrap"><button class="poly-btn delete-btn">✕</button><span class="tip-box tip-box-up">Delete this zone</span></span>
+          <span class="tip-wrap"><button class="poly-btn notes-btn" onclick="openZoneDescModal('${p.id}')">🏷️</button><span class="tip-box tip-box-up" style="left:auto;right:0;transform:none;">Edit pricing tiers</span></span>
+          <span class="tip-wrap"><button class="poly-btn delete-btn">✕</button><span class="tip-box tip-box-up" style="left:auto;right:0;transform:none;">Delete this zone</span></span>
         `;
         div.querySelector('.notes-btn').addEventListener('click', e => { e.stopPropagation(); openZoneDescModal(p.id); });
         div.querySelector('.delete-btn').addEventListener('click', e => { e.stopPropagation(); deletePoly(p.id); });
