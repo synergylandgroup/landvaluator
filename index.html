@@ -353,7 +353,7 @@
       <strong>Share your Google Sheet with this service account</strong>
       Copy and paste the following service account email into your Google Sheet's Share field:<br>
       In your Google Sheet, go to <strong>File → Share → Add people and groups</strong>, paste the email below, and grant it <strong>Editor</strong> access.
-      <div class="sm-service-email" onclick="navigator.clipboard.writeText('countyzone-sheets@countyzone-pro-489005.iam.gserviceaccount.com').then(()=>showToast('Email copied!','success'))" title="Click to copy"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6d0e021803191417020308401e050808191e2d0e021803191417020308401d1f02405955545d5d5843040c00430a1e081f1b040e080c0e0e02180319430e0200">[email&#160;protected]</a></div>
+      <div class="sm-service-email" id="serviceEmailEl" onclick="navigator.clipboard.writeText(SERVICE_ACCOUNT_EMAIL).then(()=>showToast('Email copied!','success'))" title="Click to copy"></div>
     </div>
 
     <!-- Connection Status -->
@@ -530,6 +530,9 @@ function abbrToFullName(abbr) {
 // ═══════════════════════════════════════════════════════
 // CONFIG & STATE
 // ═══════════════════════════════════════════════════════
+const SERVICE_ACCOUNT_EMAIL = 'countyzone-sheets' + '@' + 'countyzone-pro-489005.iam.gserviceaccount.com';
+// Fill email display via JS to prevent Cloudflare obfuscation
+document.addEventListener('DOMContentLoaded', () => { const el = document.getElementById('serviceEmailEl'); if(el) el.textContent = SERVICE_ACCOUNT_EMAIL; });
 const MAPBOX_TOKEN = 'pk.eyJ1Ijoic3luZXJneWxhbmRncm91cCIsImEiOiJjbW02MjI5dTEwY2xtMnFuMGs2Y3Y2OWlwIn0.O7gX97oTNFUw9HooOheq6w';
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
