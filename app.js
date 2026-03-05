@@ -1736,14 +1736,15 @@ function _readdCountyLayer(geojson) {
 }
 
 async function _fetchCountyGeoJSON(fips, countyName) {
-  // Try multiple Census endpoints in order — tigerWMS_Current is flaky
   const name = encodeURIComponent(countyName);
-  const urls = [
+
+  // 1. Census2020 — stable versioned service, most reliable
+  const tigerUrls = [
+    `https://tigerweb.geo.census.gov/arcgis/rest/services/Census2020/tigerWMS_Census2020/MapServer/82/query?where=STATE%3D'${fips}'%20AND%20BASENAME%3D'${name}'&outFields=*&f=geojson`,
+    `https://tigerweb.geo.census.gov/arcgis/rest/services/Census2020/State_County/MapServer/1/query?where=STATE%3D'${fips}'%20AND%20BASENAME%3D'${name}'&outFields=*&f=geojson`,
     `https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/82/query?where=STATE%3D'${fips}'%20AND%20BASENAME%3D'${name}'&outFields=*&f=geojson`,
-    `https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/1/query?where=STATE%3D'${fips}'%20AND%20BASENAME%3D'${name}'&outFields=*&f=geojson`,
-    `https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_ACS2023/MapServer/82/query?where=STATE%3D'${fips}'%20AND%20BASENAME%3D'${name}'&outFields=*&f=geojson`,
   ];
-  for (const url of urls) {
+  for (const url of tigerUrls) {
     try {
       const r = await fetch(url);
       if (!r.ok) continue;
@@ -1751,6 +1752,24 @@ async function _fetchCountyGeoJSON(fips, countyName) {
       if (data.features && data.features.length) return data;
     } catch(e) { continue; }
   }
+
+  // 2. Nominatim (OpenStreetMap) — completely independent fallback
+  try {
+    const stateNames = {"01":"Alabama","02":"Alaska","04":"Arizona","05":"Arkansas","06":"California","08":"Colorado","09":"Connecticut","10":"Delaware","12":"Florida","13":"Georgia","15":"Hawaii","16":"Idaho","17":"Illinois","18":"Indiana","19":"Iowa","20":"Kansas","21":"Kentucky","22":"Louisiana","23":"Maine","24":"Maryland","25":"Massachusetts","26":"Michigan","27":"Minnesota","28":"Mississippi","29":"Missouri","30":"Montana","31":"Nebraska","32":"Nevada","33":"New Hampshire","34":"New Jersey","35":"New Mexico","36":"New York","37":"North Carolina","38":"North Dakota","39":"Ohio","40":"Oklahoma","41":"Oregon","42":"Pennsylvania","44":"Rhode Island","45":"South Carolina","46":"South Dakota","47":"Tennessee","48":"Texas","49":"Utah","50":"Vermont","51":"Virginia","53":"Washington","54":"West Virginia","55":"Wisconsin","56":"Wyoming"};
+    const stateName = stateNames[fips];
+    if (stateName) {
+      const url = `https://nominatim.openstreetmap.org/search?county=${encodeURIComponent(countyName)}&state=${encodeURIComponent(stateName)}&country=USA&format=geojson&polygon_geojson=1&limit=1`;
+      const r = await fetch(url, { headers: { 'User-Agent': 'CountyZonePro/1.0' } });
+      if (r.ok) {
+        const data = await r.json();
+        if (data.features && data.features.length) {
+          // Nominatim returns slightly different structure — normalize it
+          return { type: 'FeatureCollection', features: data.features };
+        }
+      }
+    }
+  } catch(e) {}
+
   return null;
 }
 
