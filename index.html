@@ -78,8 +78,8 @@
   .poly-info{flex:1;min-width:0;}
   .poly-name{font-size:11px;font-weight:700;color:var(--zone-blue);letter-spacing:0.05em;}
   .poly-count{font-size:10px;color:var(--muted);}
-  .poly-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:1px 2px;border-radius:3px;transition:color 0.12s;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;}
-  .poly-btn:hover{color:var(--accent2);}
+  .poly-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:1px 2px;border-radius:3px;transition:color 0.12s;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;}
+  .poly-btn:hover{color:var(--accent2);}.poly-btn.notes-btn:hover{color:#3d5068;}.poly-btn.delete-btn:hover{color:var(--accent2);}
   .empty-state{text-align:center;color:var(--muted);font-size:12px;padding:24px 10px;line-height:1.8;}
 
   /* State → County hierarchy */
@@ -200,9 +200,11 @@
   .tip-wrap{position:relative;display:inline-flex;align-items:center;}
   .tip-icon{width:16px;height:16px;border-radius:50%;background:var(--panel2);border:1px solid var(--border);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;line-height:1;}
   .tip-icon:hover{background:var(--accent-light);border-color:var(--accent);color:var(--accent);}
-  .tip-box{position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);background:#1a2332;color:#e8f0fe;font-size:12px;line-height:1.6;padding:10px 14px;border-radius:10px;white-space:nowrap;z-index:9999;pointer-events:none;opacity:0;transition:opacity 0.05s;box-shadow:0 4px 20px rgba(0,0,0,0.25);}
-  .tip-box::after{content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-bottom-color:#1a2332;}.tip-box-up{top:auto!important;bottom:calc(100% + 8px)!important;}.tip-box-up::after{top:100%!important;bottom:auto!important;border-top-color:#1a2332!important;border-bottom-color:transparent!important;}
-  .tip-wrap:hover .tip-box{opacity:1;}
+  .tip-box{position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1a2332;color:#e8f0fe;font-size:10px;line-height:1.4;padding:4px 8px;border-radius:6px;white-space:nowrap;z-index:9999;pointer-events:none;opacity:0;transition:opacity 0.05s;box-shadow:0 2px 10px rgba(0,0,0,0.22);}
+  .tip-box::after{content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-bottom-color:#1a2332;}.tip-box-up{top:auto!important;bottom:calc(100% + 6px)!important;}.tip-box-up::after{top:100%!important;bottom:auto!important;border-top-color:#1a2332!important;border-bottom-color:transparent!important;}
+  .tip-wrap:hover .tip-box{opacity:1;}body.tooltips-off .tip-box{display:none!important;}
+  .tip-right{left:auto!important;right:0!important;transform:none!important;}
+  .tip-right::after{left:auto!important;right:8px!important;transform:none!important;}
 
   /* HEADER REDESIGN */
   header{grid-column:1/-1;background:var(--panel);border-bottom:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,0.06);display:grid;grid-template-columns:320px 1fr;align-items:center;height:56px;}
@@ -263,9 +265,13 @@
     <div class="logo">COUNTY<span>ZONE</span> <span style="color:var(--muted);font-weight:500">PRO</span></div>
   </div>
   <div class="header-actions-right">
+    <div class="tip-wrap" id="tooltipToggleWrap">
+      <button class="btn btn-ghost" id="tooltipToggleBtn" onclick="toggleTooltips()" style="font-size:11px" title="">💬 Tips: On</button>
+      <span class="tip-box tip-box-up" style="right:0;left:auto;transform:none;">Toggle tooltips on/off</span>
+    </div>
     <div class="tip-wrap">
       <button class="btn btn-ghost" onclick="saveZonesFile()" style="font-size:11px">💾 Save Zones</button>
-<span class="tip-box" style="left:auto;right:0;transform:none;white-space:normal;width:200px;">Exports all saved zones to a JSON file that you can download locally and later reload to restore all zones and their associated data.</span>    </div>
+<span class="tip-box" style="left:auto;right:0;transform:none;white-space:normal;width:180px;">Exports all saved zones across the map to a downloadable JSON file, which can later be reloaded to restore every zone and its associated data.</span>    </div>
     <div class="tip-wrap">
       <button class="btn btn-ghost" onclick="loadZonesFile()" style="font-size:11px">📂 Load Zones</button>
       <span class="tip-box" style="left:auto;right:0;transform:none;white-space:normal;width:200px;">Reloads zones from a previously saved JSON file, restoring all zones and their associated data.</span>
@@ -398,7 +404,10 @@
 
     <div class="modal-actions" style="margin-top:16px">
       <button class="btn btn-ghost" onclick="closeSheetsModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="connectSheets()">Connect &amp; Load</button>
+      <span class="tip-wrap" style="display:inline-flex;">
+              <button class="btn btn-primary" onclick="connectSheets()">Connect &amp; Load</button>
+              <span class="tip-box tip-box-up tip-right">Connect spreadsheet and load properties</span>
+            </span>
     </div>
   </div>
 </div>

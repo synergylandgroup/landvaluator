@@ -322,7 +322,7 @@ function _addZoneLabel(poly) {
   const el = document.createElement('div');
   el.className = 'zone-label';
   el.innerHTML = `<span class="zl-letter" style="color:var(--zone-blue,#2c5282)">ZONE ${poly.letter||''}</span><span class="zl-name">${poly.name||''}</span>`;
-  el.setAttribute('data-tip', 'Click to open pricing panel');
+  el.setAttribute('data-tip', 'Open pricing panel');
   // Single click on zone label = open Notes & Pricing
   // Guard: do nothing if a county button was just clicked
   el.addEventListener('click', (e) => {
@@ -936,8 +936,8 @@ function renderPolygonList() {
         <div class="county-header-pill">
           <span class="county-name-text">${countyName} County</span>
           <span class="county-zone-count">${cPolys.length} zone${cPolys.length!==1?"s":""}</span>
-          <span class="tip-wrap"><button class="county-action-btn" onclick="shareCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">🔗</button><span class="tip-box tip-box-up" style="left:auto;right:0;transform:none;">Copy and paste a shareable link to ${countyName} County's page</span></span>
-          <span class="tip-wrap"><button class="county-action-btn" onclick="deleteCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">🗑</button><span class="tip-box tip-box-up" style="left:auto;right:0;transform:none;">Delete saved zones in ${countyName} County</span></span>
+          <span class="tip-wrap"><button class="county-action-btn" onclick="shareCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">🔗</button><span class="tip-box tip-box-up tip-right" style="white-space:normal;width:160px;">Copy and paste a shareable link to ${countyName} County's page</span></span>
+          <span class="tip-wrap"><button class="county-action-btn" onclick="deleteCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">🗑</button><span class="tip-box tip-box-up tip-right">Delete saved zones in ${countyName} County</span></span>
         </div>
       `;
 
@@ -971,7 +971,7 @@ function renderPolygonList() {
             <div class="poly-count">${p.countyName ? p.countyName+' County, '+p.stateAbbr : ''}</div>
           </div>
           <span class="tip-wrap"><button class="poly-btn notes-btn" onclick="openZoneDescModal('${p.id}')">⚙</button><span class="tip-box tip-box-up" style="left:auto;right:0;transform:none;">Open pricing panel</span></span>
-          <span class="tip-wrap"><button class="poly-btn delete-btn">✕</button><span class="tip-box tip-box-up" style="left:auto;right:0;transform:none;">Delete zone</span></span>
+          <span class="tip-wrap"><button class="poly-btn delete-btn">✕</button><span class="tip-box tip-box-up" style="left:auto;right:0;transform:none;">Delete Zone ${p.letter}</span></span>
         `;
         div.querySelector('.notes-btn').addEventListener('click', e => { e.stopPropagation(); openZoneDescModal(p.id); });
         div.querySelector('.delete-btn').addEventListener('click', e => { e.stopPropagation(); deletePoly(p.id); });
@@ -1761,6 +1761,22 @@ function loadAppState() {
   return DB.loadAppState();
 }
 
+// ── TOOLTIP TOGGLE ──────────────────────────────────────
+function toggleTooltips() {
+  const isOff = document.body.classList.toggle('tooltips-off');
+  DB.saveUI('tooltips_off', isOff);
+  const btn = document.getElementById('tooltipToggleBtn');
+  if (btn) btn.textContent = isOff ? '💬 Tips: Off' : '💬 Tips: On';
+}
+function _initTooltipToggle() {
+  const isOff = DB.loadUI('tooltips_off', false);
+  if (isOff) {
+    document.body.classList.add('tooltips-off');
+    const btn = document.getElementById('tooltipToggleBtn');
+    if (btn) btn.textContent = '💬 Tips: Off';
+  }
+}
+
 document.getElementById('sheetsModal').addEventListener('click', e => { if (e.target===e.currentTarget) closeSheetsModal(); });
 
 // =========================================================
@@ -1768,6 +1784,7 @@ document.getElementById('sheetsModal').addEventListener('click', e => { if (e.ta
 // =========================================================
 map.on('load', () => {
   _initDrawLayers();
+  _initTooltipToggle();
   const fromURL = loadZonesFromURL();
   if (!fromURL) restoreZones();
   // Safety net: rebuild after a tick to ensure map is fully ready
@@ -1794,20 +1811,26 @@ map.on('load', () => {
           }).then(r => r.json()).then(data => {
             if (data.properties && data.properties.length) {
               loadPropertiesFromFunction(data.properties);
-              // Auto-run assignment to restore zone counts
-              let assigned = 0;
-              properties.forEach(prop => {
-                prop.zone = null;
-                for (const poly of polygons) {
-                  if (pointInPolygon(prop.lat, prop.lng, poly.points)) {
-                    prop.zone = poly.letter;
-                    assigned++;
-                    break;
+              // Wait for polygons to be fully ready before assigning
+              const _doAssign = () => {
+                let assigned = 0;
+                properties.forEach(prop => {
+                  prop.zone = null;
+                  for (const poly of polygons) {
+                    if (pointInPolygon(prop.lat, prop.lng, poly.points)) {
+                      prop.zone = poly.letter;
+                      assigned++;
+                      break;
+                    }
                   }
-                }
-              });
-              document.getElementById('statAssigned').textContent = assigned;
+                });
+                document.getElementById('statAssigned').textContent = assigned;
                 renderPolygonList();
+                DB.saveZones(polygons.map(_polyToJSON));
+              };
+              // If polygons already loaded run immediately, else wait for map ready
+              if (polygons.length) { _doAssign(); }
+              else { map.once('idle', _doAssign); }
             }
           }).catch(() => {});
         }
