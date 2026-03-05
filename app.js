@@ -123,6 +123,7 @@ function _setSheetConfig(stateAbbr, countyName, cfg) {
 let countySourceId = null;
 const _countyLayers = {}; // key -> sourceId for all counties with zones
 let _pendingCountyGeoJSON = null;
+let _countyGeoJSONCache = {};
 
 // Draw state
 let drawMode = null;
@@ -1055,7 +1056,6 @@ async function loadCountyBoundaryOnly(stateAbbr, countyName) {
     const geojson = await _fetchCountyGeoJSON(fips, countyName);
     if (!geojson) return;
     // Cache for validation use
-    if (!_countyGeoJSONCache) _countyGeoJSONCache = {};
     _countyGeoJSONCache[key] = geojson;
     _pendingCountyGeoJSON = geojson;
     // Use persistent keyed layer — doesn't remove other county boundaries
@@ -1785,7 +1785,6 @@ async function loadCounty() {
     _pendingCountyGeoJSON = geojson;
     // Register in persistent keyed layers so it survives county switching
     const key = _countyKey(abbr, county);
-    if (!_countyGeoJSONCache) _countyGeoJSONCache = {};
     _countyGeoJSONCache[key] = geojson;
     _addCountyBoundaryForKey(key, geojson);
     _readdCountyLayer(geojson); // also set countySourceId for validation
