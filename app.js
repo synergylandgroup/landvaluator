@@ -1725,6 +1725,7 @@ function _addCountyBoundaryForKey(key, geojson) {
   map.on('click', sid+'-fill', async (e) => {
     if (drawMode === 'polygon') return; // don't switch while drawing
     const [sa, cn] = key.split('|');
+    console.log('[pill click] sa:', sa, 'cn:', cn, 'current state:', stateSelect.value, 'current county:', document.getElementById('countySelect').value);
     if (stateSelect.value === sa && document.getElementById('countySelect').value === cn) return;
 
     // 1. Set state dropdown immediately
@@ -1733,11 +1734,15 @@ function _addCountyBoundaryForKey(key, geojson) {
 
     // 2. Fill county list synchronously from cache if available, else fetch
     await loadCounties(true);
+    console.log('[pill click] after loadCounties — cs.options.length:', cs.options.length, 'looking for cn:', cn);
 
     // 3. Set county dropdown — now the full list is populated
     cs.value = cn;
+    console.log('[pill click] after cs.value=cn — cs.value is now:', cs.value);
+
     // If cn wasn't in the list (edge case), add it
     if (cs.value !== cn) {
+      console.log('[pill click] cn not found in list — adding manually');
       const o = document.createElement('option');
       o.value = cn; o.textContent = cn + ' County';
       cs.appendChild(o);
