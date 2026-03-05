@@ -78,7 +78,7 @@
   .poly-info{flex:1;min-width:0;}
   .poly-name{font-size:11px;font-weight:700;color:var(--zone-blue);letter-spacing:0.05em;}
   .poly-count{font-size:10px;color:var(--muted);}
-  .poly-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:1px 2px;border-radius:3px;transition:color 0.12s;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;}
+  .poly-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0;border-radius:3px;transition:color 0.12s;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;line-height:1;}.poly-btn.notes-btn{font-size:19px;margin-top:-2px;}
   .poly-btn:hover{color:var(--accent2);}.poly-btn.notes-btn:hover{color:#3d5068;}.poly-btn.delete-btn:hover{color:var(--accent2);}
   .empty-state{text-align:center;color:var(--muted);font-size:12px;padding:24px 10px;line-height:1.8;}
 
@@ -266,8 +266,8 @@
   </div>
   <div class="header-actions-right">
     <div class="tip-wrap" id="tooltipToggleWrap">
-      <button class="btn btn-ghost" id="tooltipToggleBtn" onclick="toggleTooltips()" style="font-size:11px" title="">💬 Tips: On</button>
-      <span class="tip-box tip-box-up" style="right:0;left:auto;transform:none;">Toggle tooltips on/off</span>
+      <button class="btn btn-ghost" id="tooltipToggleBtn" onclick="toggleTooltips()" style="font-size:11px">💬 Tooltips: On</button>
+      <span class="tip-box tip-right">Toggle tooltips on/off</span>
     </div>
     <div class="tip-wrap">
       <button class="btn btn-ghost" onclick="saveZonesFile()" style="font-size:11px">💾 Save Zones</button>

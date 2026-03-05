@@ -970,8 +970,8 @@ function renderPolygonList() {
             <div class="poly-name">ZONE ${p.letter}</div>
             <div class="poly-count">${p.countyName ? p.countyName+' County, '+p.stateAbbr : ''}</div>
           </div>
-          <span class="tip-wrap"><button class="poly-btn notes-btn" onclick="openZoneDescModal('${p.id}')">⚙</button><span class="tip-box tip-box-up" style="left:auto;right:0;transform:none;">Open pricing panel</span></span>
-          <span class="tip-wrap"><button class="poly-btn delete-btn">✕</button><span class="tip-box tip-box-up" style="left:auto;right:0;transform:none;">Delete Zone ${p.letter}</span></span>
+          <span class="tip-wrap"><button class="poly-btn notes-btn" onclick="openZoneDescModal('${p.id}')">⚙</button><span class="tip-box tip-box-up tip-right">Open pricing panel</span></span>
+          <span class="tip-wrap"><button class="poly-btn delete-btn">✕</button><span class="tip-box tip-box-up tip-right">Delete Zone ${p.letter}</span></span>
         `;
         div.querySelector('.notes-btn').addEventListener('click', e => { e.stopPropagation(); openZoneDescModal(p.id); });
         div.querySelector('.delete-btn').addEventListener('click', e => { e.stopPropagation(); deletePoly(p.id); });
@@ -1766,14 +1766,14 @@ function toggleTooltips() {
   const isOff = document.body.classList.toggle('tooltips-off');
   DB.saveUI('tooltips_off', isOff);
   const btn = document.getElementById('tooltipToggleBtn');
-  if (btn) btn.textContent = isOff ? '💬 Tips: Off' : '💬 Tips: On';
+  if (btn) btn.textContent = isOff ? '💬 Tooltips: Off' : '💬 Tooltips: On';
 }
 function _initTooltipToggle() {
   const isOff = DB.loadUI('tooltips_off', false);
   if (isOff) {
     document.body.classList.add('tooltips-off');
     const btn = document.getElementById('tooltipToggleBtn');
-    if (btn) btn.textContent = '💬 Tips: Off';
+    if (btn) btn.textContent = '💬 Tooltips: Off';
   }
 }
 
@@ -1785,24 +1785,37 @@ document.getElementById('sheetsModal').addEventListener('click', e => { if (e.ta
 map.on('load', () => {
   _initDrawLayers();
   _initTooltipToggle();
-  const fromURL = loadZonesFromURL();
-  if (!fromURL) restoreZones();
-  // Safety net: rebuild after a tick to ensure map is fully ready
-  setTimeout(() => { if (polygons.length) { _rebuildAllLabels(); _loadAllCountyBoundaries(); } }, 500);
+
+  // Load sheet configs first so they're available during zone restore
   const _savedCfgs = DB.loadSheetConfigs();
   if (_savedCfgs) { sheetConfigs = _savedCfgs; }
+
+  // Restore zones from localStorage
+  const fromURL = loadZonesFromURL();
+  if (!fromURL) restoreZones();
+
+  // Safety net: rebuild labels/boundaries after map is fully ready
+  setTimeout(() => {
+    if (polygons.length) { _rebuildAllLabels(); _loadAllCountyBoundaries(); }
+  }, 500);
+
+  // Restore state/county dropdowns and reconnect sheet
   const appState = loadAppState();
   if (appState && appState.state) {
     stateSelect.value = appState.state;
     loadCounties().then(() => {
+      const countySelect = document.getElementById('countySelect');
       if (appState.county) {
-        document.getElementById('countySelect').value = appState.county;
-        // Restore active sheetConfig for this county and reload properties
+        countySelect.value = appState.county;
+
+        // Restore active sheet config for this county
         const saved = _getSheetConfig(appState.state, appState.county);
         if (saved) {
           sheetConfig = saved;
           setConnected(true);
-          // Auto-reload properties from sheet
+          renderPolygonList(); // show sidebar with connected status
+
+          // Reconnect to sheet and reload properties
           showToast('Reconnecting to sheet...', 'info');
           fetch('/.netlify/functions/sheets-read', {
             method: 'POST',
@@ -1811,7 +1824,9 @@ map.on('load', () => {
           }).then(r => r.json()).then(data => {
             if (data.properties && data.properties.length) {
               loadPropertiesFromFunction(data.properties);
-              // Wait for polygons to be fully ready before assigning
+              document.getElementById('statProperties').textContent = data.properties.length;
+
+              // Assign properties to zones — wait until polygons are on the map
               const _doAssign = () => {
                 let assigned = 0;
                 properties.forEach(prop => {
@@ -1826,16 +1841,24 @@ map.on('load', () => {
                 });
                 document.getElementById('statAssigned').textContent = assigned;
                 renderPolygonList();
-                DB.saveZones(polygons.map(_polyToJSON));
+                persistZones(); // save with updated assignments
+                showToast(`Sheet reconnected — ${assigned} properties assigned`, 'success');
               };
-              // If polygons already loaded run immediately, else wait for map ready
+
               if (polygons.length) { _doAssign(); }
               else { map.once('idle', _doAssign); }
             }
-          }).catch(() => {});
+          }).catch(err => {
+            console.warn('Sheet reconnect failed:', err);
+          });
+        } else {
+          renderPolygonList(); // show sidebar even without sheet
         }
       }
     });
+  } else if (polygons.length) {
+    // Zones exist but no saved app state — still render the list
+    renderPolygonList();
   }
 });
 
