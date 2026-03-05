@@ -1487,12 +1487,33 @@ async function connectSheets() {
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'HTTP ' + r.status);
-    loadPropertiesFromFunction(data.properties);
+    loadPropertiesFromFunction(data.properties, cn);
     setConnected(true);
-    // Fetch sheet name for modal display
+
+    // Auto-assign to existing zones immediately
+    const _cnNorm = cn.toLowerCase().trim();
+    const countyPolys = polygons.filter(p => p.stateAbbr === sa && (p.countyName||'').toLowerCase().trim() === _cnNorm);
+    if (countyPolys.length && properties.length) {
+      let assigned = 0;
+      properties.forEach(prop => {
+        prop.zone = null;
+        for (const poly of countyPolys) {
+          if (pointInPolygon(prop.lat, prop.lng, poly.points)) {
+            prop.zone = poly.letter;
+            assigned++;
+            break;
+          }
+        }
+      });
+      document.getElementById('statAssigned').textContent = assigned;
+      renderPolygonList();
+      persistZones();
+    }
+
     setTimeout(() => _fetchSheetName(sheetConfig.sheetId), 200);
     closeSheetsModal();
-    showToast(`Connected: ${cn} County, ${sa} — ${data.properties.length} properties loaded`, 'success');
+    const _assigned = properties.filter(p => p.zone).length;
+    showToast(`Connected: ${cn} County — ${properties.length} properties, ${_assigned} assigned`, 'success');
   } catch(e) { showToast('Connection failed: ' + e.message, 'error'); }
 }
 function loadPropertiesFromFunction(props, countyOverride) {
@@ -1705,14 +1726,12 @@ function _addCountyBoundaryForKey(key, geojson) {
     if (drawMode === 'polygon') return; // don't switch while drawing
     const [sa, cn] = key.split('|');
     if (stateSelect.value === sa && document.getElementById('countySelect').value === cn) return;
-    stateSelect.value = sa;
-    loadCounties().then(() => {
-      document.getElementById('countySelect').value = cn;
-      loadCounty();
-      // Restore sheet config for this county
+    // Use navigateToCounty — sets both dropdowns, saves state, loads boundary
+    navigateToCounty(sa, cn).then(() => {
       const saved = _getSheetConfig(sa, cn);
       if (saved) { sheetConfig = saved; setConnected(true); }
       else { sheetConfig = null; setConnected(false); }
+      renderPolygonList();
       showToast(`Switched to ${cn} County, ${sa}`, 'success');
     });
   });
@@ -1880,54 +1899,75 @@ map.on('load', () => {
       if (appState.county) {
         countySelect.value = appState.county;
 
-        // Restore active sheet config for this county
+        // Restore active sheet config for currently selected county
         const saved = _getSheetConfig(appState.state, appState.county);
-        if (saved) {
-          sheetConfig = saved;
-          setConnected(true);
-          renderPolygonList(); // show sidebar with connected status
+        if (saved) { sheetConfig = saved; setConnected(true); }
+        renderPolygonList();
 
-          // Reconnect to sheet and reload properties
-          showToast('Reconnecting to sheet...', 'info');
-          fetch('/.netlify/functions/sheets-read', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sheetId: saved.sheetId, sheetName: saved.sheetName || 'LI Raw Dataset' }),
-          }).then(r => r.json()).then(data => {
-            if (data.properties && data.properties.length) {
-              loadPropertiesFromFunction(data.properties);
-              document.getElementById('statProps').textContent = data.properties.length;
-
-              // Assign properties to zones — scoped to restored county, wait for polygons
-              const _doAssign = () => {
-                const _rSA = appState.state;
-                const _rCN = (appState.county||'').toLowerCase().trim();
-                const _rPolys = polygons.filter(p => p.stateAbbr === _rSA && (p.countyName||'').toLowerCase().trim() === _rCN);
-                let assigned = 0;
-                properties.forEach(prop => {
-                  prop.zone = null;
-                  for (const poly of _rPolys) {
-                    if (pointInPolygon(prop.lat, prop.lng, poly.points)) {
-                      prop.zone = poly.letter;
-                      assigned++;
-                      break;
-                    }
-                  }
+        // Reconnect ALL counties that have saved sheet configs
+        const _allConfigs = Object.entries(sheetConfigs || {});
+        if (_allConfigs.length) {
+          showToast('Reconnecting sheets...', 'info');
+          let _reconnected = 0;
+          const _reconnectAll = async () => {
+            for (const [key, cfg] of _allConfigs) {
+              if (!cfg || !cfg.sheetId) continue;
+              const [_sa, _cn] = key.split('|');
+              try {
+                const r = await fetch('/.netlify/functions/sheets-read', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ sheetId: cfg.sheetId, sheetName: cfg.sheetName || 'LI Raw Dataset' }),
                 });
-                document.getElementById('statAssigned').textContent = assigned;
-                renderPolygonList();
-                persistZones();
-                showToast(`Sheet reconnected — ${assigned} properties assigned`, 'success');
-              };
+                const data = await r.json();
+                if (!data.properties || !data.properties.length) continue;
 
-              if (polygons.length) { _doAssign(); }
-              else { map.once('idle', _doAssign); }
+                // Load props for this county (don't overwrite if already loaded for current county)
+                const _cnNorm = _cn.toLowerCase().trim();
+                const isCurrentCounty = _sa === appState.state && _cnNorm === (appState.county||'').toLowerCase().trim();
+                if (isCurrentCounty || !properties.length) {
+                  loadPropertiesFromFunction(data.properties, _cn);
+                  document.getElementById('statProps').textContent = properties.length;
+                  if (isCurrentCounty) {
+                    sheetConfig = cfg;
+                    setConnected(true);
+                  }
+                }
+
+                // Assign to this county's zones
+                const _doAssign = () => {
+                  const _rPolys = polygons.filter(p => p.stateAbbr === _sa && (p.countyName||'').toLowerCase().trim() === _cnNorm);
+                  if (!_rPolys.length) return;
+                  // Only assign props that belong to this county
+                  const _cnProps = properties.filter(p => {
+                    if (!p.county) return isCurrentCounty;
+                    return p.county.toLowerCase().replace(' county','').trim() === _cnNorm;
+                  });
+                  let assigned = 0;
+                  _cnProps.forEach(prop => {
+                    prop.zone = null;
+                    for (const poly of _rPolys) {
+                      if (pointInPolygon(prop.lat, prop.lng, poly.points)) {
+                        prop.zone = poly.letter;
+                        assigned++;
+                        break;
+                      }
+                    }
+                  });
+                  _reconnected += assigned;
+                  document.getElementById('statAssigned').textContent =
+                    parseInt(document.getElementById('statAssigned').textContent || '0') + assigned;
+                  renderPolygonList();
+                  persistZones();
+                };
+                if (polygons.length) { _doAssign(); }
+                else { map.once('idle', _doAssign); }
+              } catch(e) { console.warn('Reconnect failed for', key, e); }
             }
-          }).catch(err => {
-            console.warn('Sheet reconnect failed:', err);
-          });
-        } else {
-          renderPolygonList(); // show sidebar even without sheet
+            if (_reconnected > 0) showToast(`Sheets reconnected — ${_reconnected} properties assigned`, 'success');
+            else showToast('Sheets reconnected', 'success');
+          };
+          _reconnectAll();
         }
       }
     });
