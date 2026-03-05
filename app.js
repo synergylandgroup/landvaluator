@@ -1726,13 +1726,23 @@ function _addCountyBoundaryForKey(key, geojson) {
     if (drawMode === 'polygon') return; // don't switch while drawing
     const [sa, cn] = key.split('|');
     if (stateSelect.value === sa && document.getElementById('countySelect').value === cn) return;
-    // Use navigateToCounty — sets both dropdowns, saves state, loads boundary
-    navigateToCounty(sa, cn).then(() => {
-      const saved = _getSheetConfig(sa, cn);
-      if (saved) { sheetConfig = saved; setConnected(true); }
-      else { sheetConfig = null; setConnected(false); }
-      renderPolygonList();
-      showToast(`Switched to ${cn} County, ${sa}`, 'success');
+    // Set dropdowns immediately (synchronous) so UI reflects the click right away
+    stateSelect.value = sa;
+    const cs = document.getElementById('countySelect');
+    // Optimistically set county — may not be in list yet if counties aren't loaded
+    cs.innerHTML = `<option value="${cn}" selected>${cn} County</option>`;
+    cs.value = cn;
+    saveAppState();
+    // Restore sheet config immediately
+    const saved = _getSheetConfig(sa, cn);
+    if (saved) { sheetConfig = saved; setConnected(true); }
+    else { sheetConfig = null; setConnected(false); }
+    renderPolygonList();
+    // Then do full async load (repopulates county list, fits bounds)
+    loadCounties(true).then(() => {
+      cs.value = cn;
+      saveAppState();
+      loadCounty();
     });
   });
   map.on('mouseenter', sid+'-fill', () => { if (drawMode !== 'polygon') map.getCanvas().style.cursor = 'pointer'; });
