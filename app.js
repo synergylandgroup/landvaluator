@@ -979,18 +979,26 @@ function renderPolygonList() {
       const cCfg = _getSheetConfig(stateAbbr, countyName);
       const isConnected = !!(cCfg && cCfg.sheetId);
 
+      const countyOpenKey = 'county_open_' + stateAbbr + '_' + countyName;
+      const isCountyOpen = DB.loadUIState(countyOpenKey, true); // default open
+
       const cHdr = document.createElement('div');
       cHdr.className = 'county-header';
       cHdr.innerHTML = `
-        <div class="county-header-pill">
-          <span class="county-name-text">${countyName} County</span>
+        <div class="county-header-pill${isCountyOpen ? ' open' : ''}">
+          <span class="ch-arrow">▶</span>
+          <span class="tip-wrap" style="flex:1;min-width:0;overflow:hidden;"><span class="county-name-text">${countyName} County</span><span class="tip-box tip-box-up" style="white-space:nowrap;">${countyName} County</span></span>
           <span class="county-zone-count">${cPolys.length} zone${cPolys.length!==1?"s":""}</span>
           <span class="tip-wrap"><button class="county-action-btn" onclick="shareCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">🔗</button><span class="tip-box tip-box-up tip-right" style="white-space:normal;width:190px;">Copy and paste a shareable link to ${countyName} County's page</span></span>
           <span class="tip-wrap"><button class="county-action-btn" onclick="deleteCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">🗑</button><span class="tip-box tip-box-up tip-right">Delete saved zones in ${countyName} County</span></span>
         </div>
       `;
 
-      // Sheet status row — clean, no gray background
+      // Collapsible content wrapper (sheet status + zone rows)
+      const cContent = document.createElement('div');
+      cContent.className = 'county-content';
+
+      // Sheet status row
       const cStatus = document.createElement('div');
       cStatus.className = 'county-sheet-status';
       cStatus.dataset.state = stateAbbr;
@@ -1001,9 +1009,19 @@ function renderPolygonList() {
         cStatus.innerHTML = `<span class="tip-wrap"><button class="spill not-connected" onclick="openSheetsModalForCounty('${stateAbbr}','${CSS.escape(countyName)}',event)"><span class="spill-dot"></span>No Sheet Connected</button><span class="tip-box tip-box-up" style="left:50%;transform:translateX(-50%);white-space:normal;width:200px;">Connect a sheet to ${countyName} County</span></span>`;
       }
 
+      // County pill click: arrow toggles collapse, rest navigates
       cHdr.onclick = e => {
         if (e.target.closest('.county-action-btn') || e.target.closest('.spill')) return;
-        navigateToCounty(stateAbbr, countyName);
+        const pill = cHdr.querySelector('.county-header-pill');
+        const isOpen = pill.classList.toggle('open');
+        if (isOpen) {
+          cContent.style.maxHeight = cContent.scrollHeight + 'px';
+        } else {
+          cContent.style.maxHeight = '0';
+        }
+        DB.saveUIState(countyOpenKey, isOpen);
+        // Only navigate if clicking text area, not arrow
+        if (!e.target.closest('.ch-arrow')) navigateToCounty(stateAbbr, countyName);
       };
       cStatus.onclick = e => { e.stopPropagation(); };
 
@@ -1028,9 +1046,10 @@ function renderPolygonList() {
         polyDiv.appendChild(div);
       });
 
+      cContent.appendChild(cStatus);
+      cContent.appendChild(polyDiv);
       cGroup.appendChild(cHdr);
-      cGroup.appendChild(cStatus);
-      cGroup.appendChild(polyDiv);
+      cGroup.appendChild(cContent);
       countiesDiv.appendChild(cGroup);
     });
 
@@ -1040,6 +1059,18 @@ function renderPolygonList() {
     stateDiv.appendChild(hdrWrap);
     stateDiv.appendChild(countiesDiv);
     list.appendChild(stateDiv);
+  });
+
+  // Init county content max-heights after DOM is built
+  requestAnimationFrame(() => {
+    list.querySelectorAll('.county-content').forEach(cc => {
+      const pill = cc.previousElementSibling?.querySelector('.county-header-pill');
+      if (pill && pill.classList.contains('open')) {
+        cc.style.maxHeight = cc.scrollHeight + 'px';
+      } else {
+        cc.style.maxHeight = '0';
+      }
+    });
   });
 }
 
@@ -1743,22 +1774,24 @@ function _addCountyBoundaryForKey(key, geojson) {
   map.on('click', sid+'-fill', async (e) => {
     if (drawMode === 'polygon') return;
     const [sa, cn] = key.split('|');
-    if (stateSelect.value === sa && document.getElementById('countySelect').value === cn) return;
-    stateSelect.value = sa;
-    const cs = document.getElementById('countySelect');
-    await loadCounties(true);
-    cs.value = cn;
-    if (cs.value !== cn) {
-      const o = document.createElement('option');
-      o.value = cn; o.textContent = cn + ' County';
-      cs.appendChild(o);
+    const alreadySelected = stateSelect.value === sa && document.getElementById('countySelect').value === cn;
+    if (!alreadySelected) {
+      stateSelect.value = sa;
+      const cs = document.getElementById('countySelect');
+      await loadCounties(true);
       cs.value = cn;
+      if (cs.value !== cn) {
+        const o = document.createElement('option');
+        o.value = cn; o.textContent = cn + ' County';
+        cs.appendChild(o);
+        cs.value = cn;
+      }
+      saveAppState();
+      const saved = _getSheetConfig(sa, cn);
+      if (saved) { sheetConfig = saved; setConnected(true); }
+      else { sheetConfig = null; setConnected(false); }
+      renderPolygonList();
     }
-    saveAppState();
-    const saved = _getSheetConfig(sa, cn);
-    if (saved) { sheetConfig = saved; setConnected(true); }
-    else { sheetConfig = null; setConnected(false); }
-    renderPolygonList();
     loadCounty();
   });
   map.on('mouseenter', sid+'-fill', () => { if (drawMode !== 'polygon') map.getCanvas().style.cursor = 'pointer'; });
