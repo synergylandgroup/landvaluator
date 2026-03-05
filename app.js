@@ -1721,44 +1721,8 @@ function _addCountyBoundaryForKey(key, geojson) {
   map.addSource(sid, { type:'geojson', data:geojson });
   map.addLayer({ id:sid+'-fill', type:'fill', source:sid, paint:{'fill-color':'#000000','fill-opacity':0.08} });
   map.addLayer({ id:sid+'-line', type:'line', source:sid, paint:{'line-color':'#6600cc','line-width':2} });
-  // Click boundary to switch to that county
-  map.on('click', sid+'-fill', async (e) => {
-    if (drawMode === 'polygon') return; // don't switch while drawing
-    const [sa, cn] = key.split('|');
-    console.log('[pill click] sa:', sa, 'cn:', cn, 'current state:', stateSelect.value, 'current county:', document.getElementById('countySelect').value);
-    if (stateSelect.value === sa && document.getElementById('countySelect').value === cn) return;
-
-    // 1. Set state dropdown immediately
-    stateSelect.value = sa;
-    const cs = document.getElementById('countySelect');
-
-    // 2. Fill county list synchronously from cache if available, else fetch
-    await loadCounties(true);
-    console.log('[pill click] after loadCounties — cs.options.length:', cs.options.length, 'looking for cn:', cn);
-
-    // 3. Set county dropdown — now the full list is populated
-    cs.value = cn;
-    console.log('[pill click] after cs.value=cn — cs.value is now:', cs.value);
-
-    // If cn wasn't in the list (edge case), add it
-    if (cs.value !== cn) {
-      console.log('[pill click] cn not found in list — adding manually');
-      const o = document.createElement('option');
-      o.value = cn; o.textContent = cn + ' County';
-      cs.appendChild(o);
-      cs.value = cn;
-    }
-
-    // 4. Save state and update UI immediately
-    saveAppState();
-    const saved = _getSheetConfig(sa, cn);
-    if (saved) { sheetConfig = saved; setConnected(true); }
-    else { sheetConfig = null; setConnected(false); }
-    renderPolygonList();
-
-    // 5. Load boundary + fit map
-    loadCounty();
-  });
+  // Note: click handling is done via the global map click handler below
+  // to ensure clicks through zone layers also trigger county switching
   map.on('mouseenter', sid+'-fill', () => { if (drawMode !== 'polygon') map.getCanvas().style.cursor = 'pointer'; });
   map.on('mouseleave', sid+'-fill', () => { if (drawMode !== 'polygon') map.getCanvas().style.cursor = ''; });
 }
@@ -1899,6 +1863,39 @@ document.getElementById('sheetsModal').addEventListener('click', e => { if (e.ta
 // =========================================================
 map.on('load', () => {
   _initDrawLayers();
+
+  // Global county boundary click — fires even when zone layers are on top
+  map.on('click', async (e) => {
+    if (drawMode === 'polygon') return;
+    // Check all features at click point for county fill layers
+    const features = map.queryRenderedFeatures(e.point);
+    const countyFill = features.find(f => f.layer && f.layer.id && f.layer.id.match(/^county-.*-fill$/));
+    if (!countyFill) return;
+    // Derive key from layer id: county-{key}-{timestamp}-fill
+    const layerId = countyFill.layer.id; // e.g. county-MI-Newaygo-123456-fill
+    // Find matching key in _countyLayers
+    const key = Object.entries(_countyLayers).find(([k, sid]) => sid + '-fill' === layerId)?.[0];
+    if (!key) return;
+    const [sa, cn] = key.split('|');
+    if (stateSelect.value === sa && document.getElementById('countySelect').value === cn) return;
+
+    stateSelect.value = sa;
+    const cs = document.getElementById('countySelect');
+    await loadCounties(true);
+    cs.value = cn;
+    if (cs.value !== cn) {
+      const o = document.createElement('option');
+      o.value = cn; o.textContent = cn + ' County';
+      cs.appendChild(o);
+      cs.value = cn;
+    }
+    saveAppState();
+    const saved = _getSheetConfig(sa, cn);
+    if (saved) { sheetConfig = saved; setConnected(true); }
+    else { sheetConfig = null; setConnected(false); }
+    renderPolygonList();
+    loadCounty();
+  });
   _initTooltipToggle(); // sets body class and updates button label
 
   // Load sheet configs first so they're available during zone restore
