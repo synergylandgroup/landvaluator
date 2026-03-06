@@ -962,7 +962,8 @@ function renderPolygonList() {
     const hdr = document.createElement('div');
     hdr.className = 'state-header' + (isStateOpen ? ' open' : '');
     hdr.innerHTML = `<span class="sg-arrow">▶</span><span class="sg-name">${fullName}</span><span class="sg-count">${totalZones}</span>`;
-    hdr.onclick = () => {
+    hdr.onclick = e => {
+      if (!e.target.closest('.sg-arrow')) return; // only arrow toggles
       hdr.classList.toggle('open');
       countiesDiv.classList.toggle('open');
       DB.saveUIState(stateOpenKey, hdr.classList.contains('open'));
@@ -1011,14 +1012,15 @@ function renderPolygonList() {
       cHdr.onclick = e => {
         if (e.target.closest('.county-action-btn')) return;
         const pill = cHdr.querySelector('.county-header-pill');
-        const isOpen = pill.classList.toggle('open');
-        if (isOpen) {
-          cContent.style.maxHeight = cContent.scrollHeight + 'px';
+        if (e.target.closest('.ch-arrow')) {
+          // Arrow only: toggle collapse
+          const isOpen = pill.classList.toggle('open');
+          cContent.style.maxHeight = isOpen ? cContent.scrollHeight + 'px' : '0';
+          DB.saveUIState(countyOpenKey, isOpen);
         } else {
-          cContent.style.maxHeight = '0';
+          // Name/rest of pill: navigate only
+          navigateToCounty(stateAbbr, countyName);
         }
-        DB.saveUIState(countyOpenKey, isOpen);
-        if (!e.target.closest('.ch-arrow')) navigateToCounty(stateAbbr, countyName);
       };
 
       const polyDiv = document.createElement('div');
