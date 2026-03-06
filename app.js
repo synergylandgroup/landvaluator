@@ -1936,6 +1936,7 @@ document.getElementById('sheetsModal').addEventListener('click', e => { if (e.ta
 // =========================================================
 map.on('load', () => {
   _initDrawLayers();
+  map.resize(); // Ensure canvas recalculates after CSS zoom counter-scale
 
   _initTooltipToggle(); // sets body class and updates button label
 
