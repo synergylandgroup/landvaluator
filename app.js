@@ -987,7 +987,7 @@ function renderPolygonList() {
       cHdr.innerHTML = `
         <div class="county-header-pill${isCountyOpen ? ' open' : ''}">
           <span class="ch-arrow">▶</span>
-          <span class="tip-wrap" style="flex:1;min-width:0;overflow:hidden;"><span class="county-name-text">${countyName} County</span><span class="tip-box tip-box-up" style="white-space:nowrap;">${countyName} County</span></span>
+          <span class="county-name-text" title="${countyName} County">${countyName} County</span>
           <span class="county-zone-count">${cPolys.length} zone${cPolys.length!==1?"s":""}</span>
           <span class="tip-wrap"><button class="county-action-btn" onclick="shareCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">🔗</button><span class="tip-box tip-box-up tip-right" style="white-space:normal;width:190px;">Copy and paste a shareable link to ${countyName} County's page</span></span>
           <span class="tip-wrap"><button class="county-action-btn" onclick="deleteCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">🗑</button><span class="tip-box tip-box-up tip-right">Delete saved zones in ${countyName} County</span></span>
@@ -1109,15 +1109,17 @@ async function zoomToZoneAndCounty(poly) {
 async function loadCountyBoundaryOnly(stateAbbr, countyName) {
   try {
     const key = _countyKey(stateAbbr, countyName);
-    if (_countyLayers[key]) return; // already loaded, don't reload
+    // Always update _pendingCountyGeoJSON for draw validation
+    if (_countyGeoJSONCache[key]) {
+      _pendingCountyGeoJSON = _countyGeoJSONCache[key];
+    }
+    if (_countyLayers[key]) return; // layer already on map, no need to re-add
     const fips = STATE_FIPS[stateAbbr];
     if (!fips) return;
     const geojson = await _fetchCountyGeoJSON(fips, countyName);
     if (!geojson) return;
-    // Cache for validation use
     _countyGeoJSONCache[key] = geojson;
     _pendingCountyGeoJSON = geojson;
-    // Use persistent keyed layer — doesn't remove other county boundaries
     _addCountyBoundaryForKey(key, geojson);
   } catch(e) {}
 }

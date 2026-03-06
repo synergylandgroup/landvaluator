@@ -223,7 +223,9 @@
   .county-header{padding:3px 8px 3px 20px;background:transparent;}
   .county-header-pill{background:#dce6f0;border:1px solid #b8cfe0;border-radius:20px;padding:0 9px;height:30px;display:flex;align-items:center;gap:5px;cursor:pointer;transition:border-color 0.15s;}
   .county-header-pill:hover{border-color:var(--accent);}
-  .county-name-text{flex:1;font-size:11px;font-weight:700;color:#2c4a6e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+  .county-name-text{flex:1;font-size:11px;font-weight:700;color:#2c4a6e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;position:relative;}
+  .county-name-text[title]:hover::after{content:attr(title);position:absolute;bottom:calc(100% + 6px);left:0;background:#1a2332;color:#e8f0fe;font-size:10px;font-weight:400;padding:4px 8px;border-radius:6px;white-space:nowrap;z-index:9999;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,0.22);}
+  body.tooltips-off .county-name-text[title]:hover::after{display:none;}
   .county-zone-count{font-size:10px;color:var(--muted);font-weight:400;white-space:nowrap;}
   .county-action-btn{background:none;border:1px solid #b8cfe0;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer;color:var(--muted);transition:all 0.15s;flex-shrink:0;}
   .county-action-btn:hover{border-color:var(--accent);color:var(--accent);}
