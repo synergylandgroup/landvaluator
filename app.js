@@ -1818,8 +1818,6 @@ function _addCountyBoundaryForKey(key, geojson) {
   map.addSource(sid, { type:'geojson', data:geojson });
   map.addLayer({ id:sid+'-fill', type:'fill', source:sid, paint:{'fill-color':'#000000','fill-opacity':0.08} });
   map.addLayer({ id:sid+'-line', type:'line', source:sid, paint:{'line-color':'#6600cc','line-width':3} });
-  // State line always on top of county
-  if (map.getLayer('state-boundary-line')) map.moveLayer('state-boundary-line');
   // Click on county fill area (when no zone layer is on top)
   map.on('click', sid+'-fill', async (e) => {
     if (drawMode === 'polygon') return;
@@ -1860,8 +1858,6 @@ function _readdCountyLayer(geojson) {
       map.addSource(countySourceId, { type:'geojson', data:geojson });
       map.addLayer({ id:countySourceId+'-fill', type:'fill', source:countySourceId, paint:{'fill-color':'#000000','fill-opacity':0.12} });
       map.addLayer({ id:countySourceId+'-line', type:'line', source:countySourceId, paint:{'line-color':'#6600cc','line-width':3} });
-      // State line always on top of county
-      if (map.getLayer('state-boundary-line')) map.moveLayer('state-boundary-line');
 
     } catch(e) {
       // If map isn't ready, retry once on next idle
@@ -1929,6 +1925,8 @@ async function loadCounty() {
     _countyGeoJSONCache[key] = geojson;
     _addCountyBoundaryForKey(key, geojson);
     _readdCountyLayer(geojson); // also set countySourceId for validation
+    // Move state boundary to top after all county layers are added
+    if (map.getLayer('state-boundary-line')) map.moveLayer('state-boundary-line');
     const bounds = new mapboxgl.LngLatBounds();
     geojson.features.forEach(f => {
       const coords = f.geometry.type==='Polygon' ? f.geometry.coordinates.flat()
