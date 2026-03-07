@@ -1097,15 +1097,11 @@ async function navigateToState(stateAbbr) {
     const geojson = await res.json();
     if (!geojson.features || !geojson.features.length) return;
 
-    // Add state boundary line
+    // Add state boundary line — dashed so it's always distinguishable from county
     map.addSource('state-boundary', { type: 'geojson', data: geojson });
     map.addLayer({ id: 'state-boundary-line', type: 'line', source: 'state-boundary',
-      paint: { 'line-color': '#00d4ff', 'line-width': 4, 'line-opacity': 0.9 }
+      paint: { 'line-color': '#00d4ff', 'line-width': 3, 'line-dasharray': [6, 4] }
     });
-    // If county is already loaded, immediately move state below it
-    if (countySourceId && map.getLayer(countySourceId+'-fill')) {
-      map.moveLayer('state-boundary-line', countySourceId+'-fill');
-    }
 
     // Fit map to state bounds
     const bounds = new mapboxgl.LngLatBounds();
@@ -1821,9 +1817,7 @@ function _addCountyBoundaryForKey(key, geojson) {
   _countyLayers[key] = sid;
   map.addSource(sid, { type:'geojson', data:geojson });
   map.addLayer({ id:sid+'-fill', type:'fill', source:sid, paint:{'fill-color':'#000000','fill-opacity':0.08} });
-  map.addLayer({ id:sid+'-line', type:'line', source:sid, paint:{'line-color':'#6600cc','line-width':2} });
-  // Keep state boundary below county layers
-  if (map.getLayer('state-boundary-line')) map.moveLayer('state-boundary-line', sid+'-fill');
+  map.addLayer({ id:sid+'-line', type:'line', source:sid, paint:{'line-color':'#6600cc','line-width':3} });
   // Click on county fill area (when no zone layer is on top)
   map.on('click', sid+'-fill', async (e) => {
     if (drawMode === 'polygon') return;
@@ -1864,8 +1858,6 @@ function _readdCountyLayer(geojson) {
       map.addSource(countySourceId, { type:'geojson', data:geojson });
       map.addLayer({ id:countySourceId+'-fill', type:'fill', source:countySourceId, paint:{'fill-color':'#000000','fill-opacity':0.12} });
       map.addLayer({ id:countySourceId+'-line', type:'line', source:countySourceId, paint:{'line-color':'#6600cc','line-width':3} });
-      // Always keep state boundary below county layers
-      if (map.getLayer('state-boundary-line')) map.moveLayer('state-boundary-line', countySourceId+'-fill');
 
     } catch(e) {
       // If map isn't ready, retry once on next idle
