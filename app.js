@@ -363,7 +363,7 @@ function _buildCountyPills() {
     // Use county boundary centroid if available, else fall back to zone centroids
     let lng, lat;
     const cachedGeoJSON = _countyGeoJSONCache && _countyGeoJSONCache[key];
-    console.log('[pill] key:', key, '| cache keys:', Object.keys(_countyGeoJSONCache), '| hit:', !!cachedGeoJSON);
+
     if (cachedGeoJSON && cachedGeoJSON.features && cachedGeoJSON.features.length) {
       const bounds = new mapboxgl.LngLatBounds();
       const extendB = (coords) => {
@@ -1389,9 +1389,11 @@ async function _loadAllCountyBoundaries() {
     const fips = STATE_FIPS[sa]; if (!fips) continue;
     try {
       const geojson = await _fetchCountyGeoJSON(fips, cn);
-      if (geojson) { _addCountyBoundaryForKey(key, geojson); }
+      if (geojson) { _countyGeoJSONCache[key] = geojson; _addCountyBoundaryForKey(key, geojson); }
     } catch(e) {}
   }
+  // Rebuild pills now that all county GeoJSON is cached — ensures centroids use county bounds
+  if (polygons.length) _rebuildAllLabels();
 }
 
 function restoreZones() {
