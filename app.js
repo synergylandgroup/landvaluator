@@ -1103,7 +1103,7 @@ async function navigateToState(stateAbbr) {
     // Add white bounding box line
     map.addSource('state-boundary', { type: 'geojson', data: geojson });
     map.addLayer({ id: 'state-boundary-line', type: 'line', source: 'state-boundary',
-      paint: { 'line-color': '#00d4ff', 'line-width': 2, 'line-opacity': 0.9 }
+      paint: { 'line-color': '#00d4ff', 'line-width': 4, 'line-opacity': 0.9 }
     });
 
     // Fit map to state bounds
@@ -1855,15 +1855,15 @@ function _readdCountyLayer(geojson) {
     try {
       if (countySourceId) {
         if (map.getLayer(countySourceId+'-fill')) map.removeLayer(countySourceId+'-fill');
-        if (map.getLayer(countySourceId+'-halo')) map.removeLayer(countySourceId+'-halo');
         if (map.getLayer(countySourceId+'-line')) map.removeLayer(countySourceId+'-line');
         if (map.getSource(countySourceId))        map.removeSource(countySourceId);
       }
       countySourceId = 'county-' + Date.now();
       map.addSource(countySourceId, { type:'geojson', data:geojson });
+      // Add county layers — if state boundary exists, move it below county layers
       map.addLayer({ id:countySourceId+'-fill', type:'fill', source:countySourceId, paint:{'fill-color':'#000000','fill-opacity':0.12} });
-      map.addLayer({ id:countySourceId+'-halo', type:'line', source:countySourceId, paint:{'line-color':'#00d4ff','line-width':6,'line-opacity':0.5} });
-      map.addLayer({ id:countySourceId+'-line', type:'line', source:countySourceId, paint:{'line-color':'#6600cc','line-width':2.5} });
+      map.addLayer({ id:countySourceId+'-line', type:'line', source:countySourceId, paint:{'line-color':'#6600cc','line-width':3} });
+
     } catch(e) {
       // If map isn't ready, retry once on next idle
       map.once('idle', () => _readdCountyLayer(geojson));
