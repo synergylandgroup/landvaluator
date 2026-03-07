@@ -1100,7 +1100,7 @@ async function navigateToState(stateAbbr) {
     // Add state boundary line — solid 2px, renders on top of county
     map.addSource('state-boundary', { type: 'geojson', data: geojson });
     map.addLayer({ id: 'state-boundary-line', type: 'line', source: 'state-boundary',
-      paint: { 'line-color': '#00d4ff', 'line-width': 2 }
+      paint: { 'line-color': '#00d4ff', 'line-width': 3 }
     });
 
     // Fit map to state bounds
@@ -1287,6 +1287,22 @@ async function deleteCounty(stateAbbr, countyName, evt) {
     properties.forEach(prop => { if (prop.zone === p.name) { _markerColor(prop.marker, '#f7c948'); prop.zone = null; } });
   });
   polygons = polygons.filter(p => !(p.stateAbbr === stateAbbr && p.countyName === countyName));
+  // Remove this county's boundary layer if no zones remain for it
+  const key = _countyKey(stateAbbr, countyName);
+  const remainingForCounty = polygons.filter(p => p.stateAbbr === stateAbbr && p.countyName === countyName);
+  if (!remainingForCounty.length && _countyLayers[key]) {
+    const sid = _countyLayers[key];
+    if (map.getLayer(sid+'-fill')) map.removeLayer(sid+'-fill');
+    if (map.getLayer(sid+'-line')) map.removeLayer(sid+'-line');
+    if (map.getSource(sid)) map.removeSource(sid);
+    delete _countyLayers[key];
+  }
+  // Remove state boundary if no zones remain at all
+  if (!polygons.length) {
+    _removeCountyLayer();
+    if (map.getLayer('state-boundary-line')) map.removeLayer('state-boundary-line');
+    if (map.getSource('state-boundary')) map.removeSource('state-boundary');
+  }
   renderPolygonList(); persistZones(); _rebuildAllLabels();
 }
 
@@ -1309,6 +1325,18 @@ async function clearAllZones() {
   if (!step2) return;
   polygons.forEach(p => { _removeZoneLabel(p); if (p.handles) p.handles.forEach(h=>{if(h&&h.remove)h.remove();}); _removeZoneLayers(p.id); });
   polygons = [];
+  // Remove all county boundary layers
+  Object.keys(_countyLayers).forEach(key => {
+    const sid = _countyLayers[key];
+    if (map.getLayer(sid+'-fill')) map.removeLayer(sid+'-fill');
+    if (map.getLayer(sid+'-line')) map.removeLayer(sid+'-line');
+    if (map.getSource(sid)) map.removeSource(sid);
+    delete _countyLayers[key];
+  });
+  _removeCountyLayer();
+  // Remove state boundary layer
+  if (map.getLayer('state-boundary-line')) map.removeLayer('state-boundary-line');
+  if (map.getSource('state-boundary')) map.removeSource('state-boundary');
   properties.forEach(prop => { if (prop.zone) { _markerColor(prop.marker, '#f7c948'); prop.zone = null; } });
   renderPolygonList(); persistZones(); _rebuildAllLabels();
   showToast('All zones cleared', 'info');
@@ -1925,8 +1953,6 @@ async function loadCounty() {
     _countyGeoJSONCache[key] = geojson;
     _addCountyBoundaryForKey(key, geojson);
     _readdCountyLayer(geojson); // also set countySourceId for validation
-    // Move state boundary to top after all county layers are added
-    if (map.getLayer('state-boundary-line')) map.moveLayer('state-boundary-line');
     const bounds = new mapboxgl.LngLatBounds();
     geojson.features.forEach(f => {
       const coords = f.geometry.type==='Polygon' ? f.geometry.coordinates.flat()
