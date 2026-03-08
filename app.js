@@ -1067,7 +1067,12 @@ function renderPolygonList() {
         countiesDiv.classList.toggle('open');
         DB.saveUIState(stateOpenKey, hdr.classList.contains('open'));
       } else {
-        // Name zone: zoom to state
+        // Name zone: zoom to state + update location bar
+        stateSelect.value = stateAbbr;
+        _syncStateTrigger(stateAbbr);
+        const cs = document.getElementById('countySelect');
+        cs.innerHTML = '<option value="">— Select County —</option>';
+        _syncCountyTrigger('');
         navigateToState(stateAbbr);
       }
     };
@@ -1225,8 +1230,10 @@ async function navigateToCounty(stateAbbr, countyName) {
   const ss = document.getElementById('stateSelect');
   const cs = document.getElementById('countySelect');
   ss.value = stateAbbr;
+  _syncStateTrigger(stateAbbr);
   await loadCounties(true);
   cs.value = countyName;
+  _syncCountyTrigger(countyName);
   saveAppState();
   await loadCounty(); // also fits bounds
 }
@@ -1242,8 +1249,10 @@ async function zoomToZoneAndCounty(poly) {
     const ss = document.getElementById('stateSelect');
     const cs = document.getElementById('countySelect');
     ss.value = poly.stateAbbr;
+    _syncStateTrigger(poly.stateAbbr);
     await loadCounties(true);
     cs.value = poly.countyName;
+    _syncCountyTrigger(poly.countyName);
     saveAppState();
     // Show county boundary without refitting the map view
     await loadCountyBoundaryOnly(poly.stateAbbr, poly.countyName);
@@ -1913,15 +1922,36 @@ STATES.forEach(([name, abbr]) => {
 // =========================================================
 // CUSTOM DROPDOWNS
 // =========================================================
+let _dropKeyBuffer = '';
+let _dropKeyTimer = null;
+let _dropFocusIdx = -1;
+let _dropActiveWhich = null; // 'state' | 'county'
+
 function _buildCustomList(listEl, options, currentValue, onSelect) {
   listEl.innerHTML = '';
-  options.forEach(({ value, label }) => {
+  options.forEach(({ value, label }, idx) => {
     const div = document.createElement('div');
     div.className = 'custom-select-option' + (value === '' ? ' placeholder-opt' : '') + (value === currentValue ? ' selected' : '');
     div.textContent = label;
+    div.dataset.value = value;
+    div.dataset.idx = idx;
     div.addEventListener('click', (e) => { e.stopPropagation(); onSelect(value, label); });
     listEl.appendChild(div);
   });
+}
+
+function _dropSetFocus(listEl, idx) {
+  const items = listEl.querySelectorAll('.custom-select-option:not(.placeholder-opt)');
+  items.forEach(el => el.classList.remove('kbd-focus'));
+  if (idx < 0 || idx >= items.length) { _dropFocusIdx = -1; return; }
+  _dropFocusIdx = idx;
+  const el = items[idx];
+  el.classList.add('kbd-focus');
+  el.scrollIntoView({ block: 'nearest' });
+}
+
+function _dropGetItems(listEl) {
+  return Array.from(listEl.querySelectorAll('.custom-select-option:not(.placeholder-opt)'));
 }
 
 function _syncStateTrigger(value) {
@@ -1943,6 +1973,39 @@ function _syncCountyTrigger(value) {
   trigger.classList.toggle('placeholder', !value);
 }
 
+function _closeAllDropdowns() {
+  ['stateTrigger','countyTrigger'].forEach(id => document.getElementById(id)?.classList.remove('open'));
+  ['stateList','countyList'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.remove('open'); el.style.maxHeight = ''; }
+  });
+  _dropFocusIdx = -1;
+  _dropActiveWhich = null;
+}
+
+function _openDropdown(which, trigger, list, opts, currentValue, onSelect) {
+  _buildCustomList(list, opts, currentValue, onSelect);
+
+  // For county: auto-size to content (no scroll needed for small lists)
+  if (which === 'county') {
+    // Let CSS handle max-height but shrink if fewer items fit
+    const itemH = 34; // approx px per item
+    const naturalH = opts.length * itemH;
+    list.style.maxHeight = naturalH < 800 ? naturalH + 'px' : '800px';
+  } else {
+    list.style.maxHeight = '800px';
+  }
+
+  trigger.classList.add('open');
+  list.classList.add('open');
+  _dropFocusIdx = -1;
+  _dropActiveWhich = which;
+
+  // Scroll selected item into view
+  const selected = list.querySelector('.selected');
+  if (selected) selected.scrollIntoView({ block: 'nearest' });
+}
+
 function _toggleDropdown(which) {
   const isState = which === 'state';
   const triggerId = isState ? 'stateTrigger' : 'countyTrigger';
@@ -1952,20 +2015,15 @@ function _toggleDropdown(which) {
   if (!trigger || !list) return;
 
   const isOpen = list.classList.contains('open');
-
-  // Close both first
-  ['stateTrigger','countyTrigger'].forEach(id => document.getElementById(id)?.classList.remove('open'));
-  ['stateList','countyList'].forEach(id => document.getElementById(id)?.classList.remove('open'));
+  _closeAllDropdowns();
 
   if (!isOpen) {
     if (isState) {
       const opts = [{ value: '', label: '— Select State —' }, ...STATES.map(([name, abbr]) => ({ value: abbr, label: name }))];
-      _buildCustomList(list, opts, stateSelect.value, (val, lbl) => {
+      _openDropdown('state', trigger, list, opts, stateSelect.value, (val) => {
         stateSelect.value = val;
         _syncStateTrigger(val);
-        trigger.classList.remove('open');
-        list.classList.remove('open');
-        // Reset county
+        _closeAllDropdowns();
         const cs = document.getElementById('countySelect');
         cs.innerHTML = '<option value="">— Select County —</option>';
         _syncCountyTrigger('');
@@ -1973,30 +2031,65 @@ function _toggleDropdown(which) {
       });
     } else {
       const cs = document.getElementById('countySelect');
+      if (!cs.options.length || (cs.options.length === 1 && cs.options[0].value === '')) return; // no counties loaded yet
       const opts = Array.from(cs.options).map(o => ({ value: o.value, label: o.textContent }));
-      _buildCustomList(list, opts, cs.value, (val) => {
+      _openDropdown('county', trigger, list, opts, cs.value, (val) => {
         cs.value = val;
         _syncCountyTrigger(val);
-        trigger.classList.remove('open');
-        list.classList.remove('open');
+        _closeAllDropdowns();
         cs.dispatchEvent(new Event('change'));
       });
     }
-    trigger.classList.add('open');
-    list.classList.add('open');
   }
 }
+
+// Keyboard navigation for open dropdown
+document.addEventListener('keydown', (e) => {
+  if (!_dropActiveWhich) return;
+  const listId = _dropActiveWhich === 'state' ? 'stateList' : 'countyList';
+  const list = document.getElementById(listId);
+  if (!list || !list.classList.contains('open')) return;
+  const items = _dropGetItems(list);
+  if (!items.length) return;
+
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    _closeAllDropdowns();
+    return;
+  }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    _dropSetFocus(list, Math.min(_dropFocusIdx + 1, items.length - 1));
+    return;
+  }
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    _dropSetFocus(list, Math.max(_dropFocusIdx - 1, 0));
+    return;
+  }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (_dropFocusIdx >= 0 && items[_dropFocusIdx]) items[_dropFocusIdx].click();
+    return;
+  }
+
+  // Type-ahead: buffer key presses, jump to first match
+  if (e.key.length === 1) {
+    clearTimeout(_dropKeyTimer);
+    _dropKeyBuffer += e.key.toLowerCase();
+    _dropKeyTimer = setTimeout(() => { _dropKeyBuffer = ''; }, 800);
+    const match = items.findIndex(el => el.textContent.toLowerCase().startsWith(_dropKeyBuffer));
+    if (match >= 0) _dropSetFocus(list, match);
+  }
+});
 
 // Close dropdowns on outside click
 document.addEventListener('click', (e) => {
   if (!e.target.closest('#stateDropdown') && !e.target.closest('#countyDropdown')) {
-    ['stateTrigger','countyTrigger'].forEach(id => document.getElementById(id)?.classList.remove('open'));
-    ['stateList','countyList'].forEach(id => document.getElementById(id)?.classList.remove('open'));
+    _closeAllDropdowns();
   }
 });
 
-// Sync custom triggers whenever native select values change externally
-const _origLoadCounties = window.loadCounties;
 function _refreshCustomSelects() {
   _syncStateTrigger(stateSelect.value);
   _syncCountyTrigger(document.getElementById('countySelect').value);
@@ -2060,6 +2153,7 @@ function _addCountyBoundaryForKey(key, geojson) {
     const alreadySelected = stateSelect.value === sa && document.getElementById('countySelect').value === cn;
     if (!alreadySelected) {
       stateSelect.value = sa;
+      _syncStateTrigger(sa);
       const cs = document.getElementById('countySelect');
       await loadCounties(true);
       cs.value = cn;
@@ -2069,6 +2163,7 @@ function _addCountyBoundaryForKey(key, geojson) {
         cs.appendChild(o);
         cs.value = cn;
       }
+      _syncCountyTrigger(cn);
       saveAppState();
       const saved = _getSheetConfig(sa, cn);
       if (saved) { sheetConfig = saved; setConnected(true); }
