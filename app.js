@@ -1125,6 +1125,7 @@ function renderPolygonList() {
           // Arrow zone: toggle collapse
           const isOpen = pill.classList.toggle('open');
           cContent.style.maxHeight = isOpen ? cContent.scrollHeight + 'px' : '0';
+          cContent.classList.toggle('cc-open', isOpen);
           DB.saveUIState(countyOpenKey, isOpen);
         } else {
           // Name zone: navigate to county
@@ -1173,8 +1174,10 @@ function renderPolygonList() {
       const pill = cc.previousElementSibling?.querySelector('.county-header-pill');
       if (pill && pill.classList.contains('open')) {
         cc.style.maxHeight = cc.scrollHeight + 'px';
+        cc.classList.add('cc-open');
       } else {
         cc.style.maxHeight = '0';
+        cc.classList.remove('cc-open');
       }
     });
   });
