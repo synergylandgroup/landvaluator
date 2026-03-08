@@ -1066,7 +1066,6 @@ function renderPolygonList() {
         hdr.classList.toggle('open');
         const isOpen = hdr.classList.contains('open');
         countiesDiv.style.maxHeight = isOpen ? countiesDiv.scrollHeight + 'px' : '0';
-        countiesDiv.classList.toggle('sc-open', isOpen);
         DB.saveUIState(stateOpenKey, isOpen);
       } else {
         // Name zone: zoom to state + update location bar
@@ -1177,7 +1176,6 @@ function renderPolygonList() {
     list.querySelectorAll('.state-counties').forEach(sc => {
       if (sc.dataset.initOpen === '1') {
         sc.style.maxHeight = sc.scrollHeight + 'px';
-        sc.classList.add('sc-open');
       } else {
         sc.style.maxHeight = '0';
       }
