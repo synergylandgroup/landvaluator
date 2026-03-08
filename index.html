@@ -14,7 +14,7 @@
   }
   html{font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;}
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh;display:grid;grid-template-rows:64px 1fr;grid-template-columns:400px 1fr;overflow:hidden;}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh;display:grid;grid-template-rows:64px 1fr;grid-template-columns:420px 1fr;overflow:hidden;}
 
   /* HEADER */
   .logo{font-family:var(--font);font-size:21px;font-weight:700;letter-spacing:0.06em;white-space:nowrap;}
@@ -235,28 +235,29 @@
   .tip-box::after{content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-bottom-color:#1a2332;}.tip-box-up{top:auto!important;bottom:calc(100% + 6px)!important;}.tip-box-up::after{top:100%!important;bottom:auto!important;border-top-color:#1a2332!important;border-bottom-color:transparent!important;}
   .tip-wrap:hover .tip-box{opacity:1;}body.tooltips-off .tip-box{display:none!important;}
   .tip-right{left:auto!important;right:0!important;transform:none!important;}
-  .tip-right::after{left:auto!important;right:9px!important;transform:none!important;}
+  .tip-right::after{left:auto!important;right:18px!important;transform:none!important;}
   .tip-left{right:auto!important;left:0!important;transform:none!important;}
   .tip-left::after{right:auto!important;left:12px!important;transform:none!important;}
 
   /* HEADER REDESIGN */
-  header{grid-column:1/-1;background:var(--panel);border-bottom:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,0.06);display:grid;grid-template-columns:400px 1fr;align-items:center;height:64px;}
-  .header-logo{display:flex;align-items:center;justify-content:center;height:64px;width:400px;}
+  header{grid-column:1/-1;background:var(--panel);border-bottom:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,0.06);display:grid;grid-template-columns:420px 1fr;align-items:center;height:64px;}
+  .header-logo{display:flex;align-items:center;justify-content:center;height:64px;width:420px;}
   .header-actions-right{display:flex;align-items:center;justify-content:flex-end;padding:0 16px;gap:8px;}
   #sidebarToggle{display:none;background:none;border:none;font-size:18px;cursor:pointer;padding:4px 8px;color:var(--muted);}
 
   /* COUNTY HEADER REDESIGN */
   .county-header{padding:3px 15px 3px 35px;background:transparent;}
-  .county-header-pill{background:#dce6f0;border:1px solid #b8cfe0;border-radius:20px;padding:0 10px 0 0;height:38px;display:flex;align-items:center;gap:6px;cursor:pointer;transition:border-color 0.15s;overflow:hidden;}
+  .county-header-pill{background:#dce6f0;border:1px solid #b8cfe0;border-radius:20px;padding:0 8px 0 0;height:38px;display:flex;align-items:center;gap:4px;cursor:pointer;transition:border-color 0.15s;position:relative;}
   .county-header-pill:hover{border-color:var(--accent);}
   .county-name-text{flex:1;font-size:14px;font-weight:700;color:#2c4a6e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;position:relative;margin-left:4px;}
   .county-name-text[title]:hover::after{content:attr(title);position:absolute;bottom:calc(100% + 6px);left:0;background:#1a2332;color:#e8f0fe;font-size:12px;font-weight:400;padding:5px 10px;border-radius:6px;white-space:nowrap;z-index:9999;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,0.22);}
   body.tooltips-off .county-name-text[title]:hover::after{display:none;}
   .county-zone-count{font-size:13px;color:var(--muted);font-weight:400;white-space:nowrap;}
   .county-zone-pill{font-size:13px;font-weight:700;background:#b8cfe0;color:#2c4a6e;padding:2px 9px;border-radius:9px;flex-shrink:0;white-space:nowrap;}
-  .county-action-btn{background:none;border:1px solid #b8cfe0;border-radius:50%;width:25px;height:25px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;color:var(--muted);transition:all 0.15s;flex-shrink:0;}
+  .county-action-btn{background:none;border:1px solid #b8cfe0;border-radius:50%;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;color:var(--muted);transition:all 0.15s;flex-shrink:0;}
   .county-action-btn.sheet-icon-btn{border:none;padding:0;}
   .county-action-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .county-header-pill .tip-wrap{overflow:visible;z-index:10;}
 
   /* COUNTY SHEET STATUS REDESIGN */
   .county-sheet-status{display:flex;align-items:center;padding:3px 8px 4px 20px;background:transparent;}
@@ -413,7 +414,7 @@
     <div class="sm-status-row" id="smStatusRow">
       <span class="spill-dot" id="smDot" style="width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;"></span>
       <span style="font-size:11px;font-weight:600;" id="smStatusText">Sheet Not Connected</span>
-      <span style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+      <span style="display:flex;align-items:center;gap:8px;">
         <button class="sm-open-sheet" id="smOpenSheetBtn" style="display:none;background:var(--green);border:1px solid var(--green);color:#fff;border-radius:20px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font);">Open Connected Sheet ↗</button>
         <button class="sm-disconnect" id="smDisconnectBtn" onclick="disconnectSheet()" style="display:none">Disconnect</button>
       </span>

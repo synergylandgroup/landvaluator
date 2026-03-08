@@ -1263,7 +1263,6 @@ async function loadCountyBoundaryOnly(stateAbbr, countyName) {
   } catch(e) {}
 }
 
-
 // =========================================================
 // CUSTOM CONFIRM DIALOGS
 // =========================================================
@@ -1454,7 +1453,16 @@ async function _loadAllCountyBoundaries() {
     const fips = STATE_FIPS[sa]; if (!fips) continue;
     try {
       const geojson = await _fetchCountyGeoJSON(fips, cn);
-      if (geojson) { _countyGeoJSONCache[key] = geojson; _addCountyBoundaryForKey(key, geojson); }
+      if (geojson) {
+        _countyGeoJSONCache[key] = geojson;
+        _addCountyBoundaryForKey(key, geojson);
+        // If this is the currently selected county, set as active boundary for draw enforcement
+        const selState = document.getElementById('stateSelect').value;
+        const selCounty = document.getElementById('countySelect').value;
+        if (sa === selState && cn === selCounty) {
+          _pendingCountyGeoJSON = geojson;
+        }
+      }
     } catch(e) {}
   }
   // Rebuild pills now that all county GeoJSON is cached — ensures centroids use county bounds
@@ -2155,6 +2163,9 @@ map.on('load', () => {
         const saved = _getSheetConfig(appState.state, appState.county);
         if (saved) { sheetConfig = saved; setConnected(true); }
         renderPolygonList();
+
+        // Ensure boundary enforcement is active for restored county
+        loadCountyBoundaryOnly(appState.state, appState.county);
 
         // Reconnect ALL counties that have saved sheet configs
         const _allConfigs = Object.entries(sheetConfigs || {});
