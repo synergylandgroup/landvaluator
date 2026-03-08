@@ -91,7 +91,7 @@ function abbrToFullName(abbr) {
 // =========================================================
 // CONFIG & STATE
 // =========================================================
-const SERVICE_ACCOUNT_EMAIL = [99,111,117,110,116,121,122,111,110,101,45,115,104,101,101,116,115,64,99,111,117,110,116,121,122,111,110,101,45,112,114,111,45,52,56,57,48,48,53,46,105,97,109,46,103,115,101,114,118,105,99,101,97,99,99,111,117,110,116,46,99,111,109].map(c=>String.fromCharCode(c)).join('');
+const SERVICE_ACCOUNT_EMAIL = [108,97,110,100,118,97,108,117,97,116,111,114,45,115,104,101,101,116,115,64,108,97,110,100,118,97,108,117,97,116,111,114,46,105,97,109,46,103,115,101,114,118,105,99,101,97,99,99,111,117,110,116,46,99,111,109].map(c=>String.fromCharCode(c)).join('');
 // Fill email display via JS to prevent Cloudflare obfuscation
 document.addEventListener('DOMContentLoaded', () => { const el = document.getElementById('serviceEmailEl'); if(el) el.textContent = SERVICE_ACCOUNT_EMAIL; });
 const MAPBOX_TOKEN = 'pk.eyJ1Ijoic3luZXJneWxhbmRncm91cCIsImEiOiJjbW02MjI5dTEwY2xtMnFuMGs2Y3Y2OWlwIn0.O7gX97oTNFUw9HooOheq6w';
