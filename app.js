@@ -94,69 +94,6 @@ function abbrToFullName(abbr) {
 const SERVICE_ACCOUNT_EMAIL = [108,97,110,100,118,97,108,117,97,116,111,114,45,115,104,101,101,116,115,64,108,97,110,100,118,97,108,117,97,116,111,114,46,105,97,109,46,103,115,101,114,118,105,99,101,97,99,99,111,117,110,116,46,99,111,109].map(c=>String.fromCharCode(c)).join('');
 // Fill email display via JS to prevent Cloudflare obfuscation
 document.addEventListener('DOMContentLoaded', () => { const el = document.getElementById('serviceEmailEl'); if(el) el.textContent = SERVICE_ACCOUNT_EMAIL; });
-
-// =========================================================
-// FIXED-POSITION TOOLTIP MANAGER
-// Tooltips inside overflow:clip containers (county/zone lists)
-// must use position:fixed to escape clipping.
-// =========================================================
-(function() {
-  const LIST_SELECTOR = '#polygonsList';
-
-  document.addEventListener('mouseenter', e => {
-    const wrap = e.target.closest && e.target.closest('.tip-wrap');
-    if (!wrap) return;
-    if (!wrap.closest(LIST_SELECTOR)) return;
-    const box = wrap.querySelector('.tip-box');
-    if (!box) return;
-
-    const anchor = wrap.getBoundingClientRect();
-    const isUp = box.classList.contains('tip-box-up');
-    const isOpenLeft = box.classList.contains('tip-open-left');
-
-    box.classList.add('tip-box-fixed');
-
-    // Force a paint so we can measure box dimensions
-    box.style.opacity = '0';
-    box.style.display = 'block';
-    const bw = box.offsetWidth;
-    const bh = box.offsetHeight;
-
-    let top, left;
-    if (isUp) {
-      top = anchor.top - bh - 6;
-    } else {
-      top = anchor.bottom + 6;
-    }
-
-    if (isOpenLeft) {
-      // Right edge of box aligns to right edge of anchor
-      left = anchor.right - bw;
-    } else {
-      // Centered on anchor
-      left = anchor.left + anchor.width / 2 - bw / 2;
-    }
-
-    // Keep on screen
-    left = Math.max(4, Math.min(left, window.innerWidth - bw - 4));
-
-    box.style.top = top + 'px';
-    box.style.left = left + 'px';
-    box.style.display = '';
-
-  }, true);
-
-  document.addEventListener('mouseleave', e => {
-    const wrap = e.target.closest && e.target.closest('.tip-wrap');
-    if (!wrap) return;
-    if (!wrap.closest(LIST_SELECTOR)) return;
-    const box = wrap.querySelector('.tip-box');
-    if (!box) return;
-    box.classList.remove('tip-box-fixed');
-    box.style.top = '';
-    box.style.left = '';
-  }, true);
-})();
 const MAPBOX_TOKEN = 'pk.eyJ1Ijoic3luZXJneWxhbmRncm91cCIsImEiOiJjbW02MjI5dTEwY2xtMnFuMGs2Y3Y2OWlwIn0.O7gX97oTNFUw9HooOheq6w';
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
@@ -1125,28 +1062,8 @@ function renderPolygonList() {
     hdr.innerHTML = `<span class="state-arrow-zone"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 2L8 6L4 10" stroke="#a8bcd4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="sg-name">${fullName}</span><span class="sg-count">${totalZones}</span>`;
     hdr.onclick = e => {
       if (e.target.closest('.state-arrow-zone')) {
-        // Arrow zone: toggle collapse
-        hdr.classList.toggle('open');
-        const isOpen = hdr.classList.contains('open');
-        if (isOpen) {
-          // Measure true height: briefly lift constraints, read, restore, then animate
-          countiesDiv.style.transition = 'none';
-          countiesDiv.style.maxHeight = 'none';
-          countiesDiv.classList.add('sc-open');
-          const h = countiesDiv.scrollHeight;
-          countiesDiv.style.maxHeight = '0';
-          countiesDiv.classList.remove('sc-open');
-          // Force reflow then animate to real height
-          countiesDiv.offsetHeight;
-          countiesDiv.style.transition = '';
-          countiesDiv.style.maxHeight = h + 'px';
-          countiesDiv.classList.add('sc-open');
-        } else {
-          countiesDiv.style.maxHeight = countiesDiv.scrollHeight + 'px';
-          countiesDiv.offsetHeight;
-          countiesDiv.style.maxHeight = '0';
-          countiesDiv.classList.remove('sc-open');
-        }
+        const isOpen = hdr.classList.toggle('open');
+        countiesDiv.classList.toggle('ac-collapsed', !isOpen);
         DB.saveUIState(stateOpenKey, isOpen);
       } else {
         // Name zone: zoom to state + update location bar
@@ -1160,8 +1077,7 @@ function renderPolygonList() {
     };
 
     const countiesDiv = document.createElement('div');
-    countiesDiv.className = 'state-counties';
-    countiesDiv.dataset.initOpen = isStateOpen ? '1' : '0';
+    countiesDiv.className = 'state-counties' + (isStateOpen ? '' : ' ac-collapsed');
 
     Object.keys(byState[stateAbbr]).sort().forEach(countyName => {
       const cPolys = byState[stateAbbr][countyName];
@@ -1174,7 +1090,7 @@ function renderPolygonList() {
       const countyOpenKey = 'county_open_' + stateAbbr + '_' + countyName;
       const isCountyOpen = DB.loadUIState(countyOpenKey, true); // default open
 
-      // Sheet connection icon SVG (green=connected, red=not connected) — Option B: document + rows
+      // Sheet connection icon SVG (green=connected, red=not connected)
       const sheetIconSVG = isConnected
         ? `<svg width="17" height="17" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 2h7l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="#2e8a5a" stroke-width="1.6" stroke-linejoin="round"/><path d="M11 2v5h5" stroke="#2e8a5a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><line x1="6" y1="10" x2="14" y2="10" stroke="#2e8a5a" stroke-width="1.4" stroke-linecap="round"/><line x1="6" y1="13" x2="14" y2="13" stroke="#2e8a5a" stroke-width="1.4" stroke-linecap="round"/><line x1="6" y1="16" x2="11" y2="16" stroke="#2e8a5a" stroke-width="1.4" stroke-linecap="round"/></svg>`
         : `<svg width="17" height="17" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 2h7l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="#b94040" stroke-width="1.6" stroke-linejoin="round"/><path d="M11 2v5h5" stroke="#b94040" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><line x1="6" y1="10" x2="14" y2="10" stroke="#b94040" stroke-width="1.4" stroke-linecap="round"/><line x1="6" y1="13" x2="14" y2="13" stroke="#b94040" stroke-width="1.4" stroke-linecap="round"/><line x1="6" y1="16" x2="11" y2="16" stroke="#b94040" stroke-width="1.4" stroke-linecap="round"/></svg>`;
@@ -1189,29 +1105,24 @@ function renderPolygonList() {
           <span class="county-arrow-zone"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 2L8 6L4 10" stroke="#a8bcd4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           <span class="county-name-text" title="${countyName} County">${countyName} County</span>
           <span class="county-zone-pill">${cPolys.length}</span>
-          <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="openSheetsModalForCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">${sheetIconSVG}</button><span class="tip-box tip-box-up tip-open-left" style="white-space:nowrap;">${sheetIconTooltip}</span></span>
-          <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="shareCounty('${stateAbbr}','${CSS.escape(countyName)}',event)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7d95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button><span class="tip-box tip-box-up tip-open-left" style="white-space:nowrap;">Copy URL to ${countyName} County's zones page.</span></span>
-          <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="deleteCounty('${stateAbbr}','${CSS.escape(countyName)}',event)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7d95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button><span class="tip-box tip-box-up tip-open-left" style="white-space:nowrap;">Delete saved zones in ${countyName} County</span></span>
+          <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="openSheetsModalForCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">${sheetIconSVG}</button><span class="tip-box tip-sidebar">${sheetIconTooltip}</span></span>
+          <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="shareCounty('${stateAbbr}','${CSS.escape(countyName)}',event)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7d95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button><span class="tip-box tip-sidebar">Copy URL to ${countyName} County's zones page.</span></span>
+          <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="deleteCounty('${stateAbbr}','${CSS.escape(countyName)}',event)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7d95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button><span class="tip-box tip-sidebar">Delete saved zones in ${countyName} County</span></span>
         </div>
       `;
 
-      // Collapsible content wrapper — zone rows only (sheet status pill removed)
       const cContent = document.createElement('div');
-      cContent.className = 'county-content';
+      cContent.className = 'county-content' + (isCountyOpen ? '' : ' ac-collapsed');
 
-      // County pill click: arrow toggles collapse, rest navigates
       cHdr.onclick = e => {
         if (e.target.closest('.county-action-btn')) return;
         if (e.target.closest('.sheet-icon-btn')) return;
         const pill = cHdr.querySelector('.county-header-pill');
         if (e.target.closest('.county-arrow-zone')) {
-          // Arrow zone: toggle collapse
           const isOpen = pill.classList.toggle('open');
-          cContent.style.maxHeight = isOpen ? cContent.scrollHeight + 'px' : '0';
-          cContent.classList.toggle('cc-open', isOpen);
+          cContent.classList.toggle('ac-collapsed', !isOpen);
           DB.saveUIState(countyOpenKey, isOpen);
         } else {
-          // Name zone: navigate to county
           navigateToCounty(stateAbbr, countyName);
         }
       };
@@ -1228,8 +1139,8 @@ function renderPolygonList() {
             <div class="poly-name">ZONE ${p.letter}</div>
             <div class="poly-count">${p.countyName ? p.countyName+' County, '+p.stateAbbr : ''}</div>
           </div>
-          <span class="tip-wrap"><button class="poly-btn notes-btn" onclick="openZoneDescModal('${p.id}')">⚙</button><span class="tip-box tip-box-up">Open pricing panel</span></span>
-          <span class="tip-wrap"><button class="poly-btn delete-btn">✕</button><span class="tip-box tip-box-up">Delete Zone ${p.letter}</span></span>
+          <span class="tip-wrap"><button class="poly-btn notes-btn" onclick="openZoneDescModal('${p.id}')">⚙</button><span class="tip-box tip-sidebar">Open pricing panel</span></span>
+          <span class="tip-wrap"><button class="poly-btn delete-btn">✕</button><span class="tip-box tip-sidebar">Delete Zone ${p.letter}</span></span>
         `;
         div.querySelector('.notes-btn').addEventListener('click', e => { e.stopPropagation(); openZoneDescModal(p.id); });
         div.querySelector('.delete-btn').addEventListener('click', e => { e.stopPropagation(); deletePoly(p.id); });
@@ -1249,37 +1160,6 @@ function renderPolygonList() {
     stateDiv.appendChild(hdrWrap);
     stateDiv.appendChild(countiesDiv);
     list.appendChild(stateDiv);
-  });
-
-  // Init heights: county content first, then state (so state scrollHeight is accurate)
-  requestAnimationFrame(() => {
-    // Pass 1: set county content heights
-    list.querySelectorAll('.county-content').forEach(cc => {
-      const pill = cc.previousElementSibling?.querySelector('.county-header-pill');
-      if (pill && pill.classList.contains('open')) {
-        cc.style.maxHeight = cc.scrollHeight + 'px';
-        cc.classList.add('cc-open');
-      } else {
-        cc.style.maxHeight = '0';
-        cc.classList.remove('cc-open');
-      }
-    });
-    // Pass 2: now measure state heights (county content heights are settled)
-    requestAnimationFrame(() => {
-      list.querySelectorAll('.state-counties').forEach(sc => {
-        if (sc.dataset.initOpen === '1') {
-          sc.style.transition = 'none';
-          sc.style.maxHeight = 'none';
-          sc.classList.add('sc-open');
-          const h = sc.scrollHeight;
-          sc.style.maxHeight = h + 'px';
-          sc.offsetHeight; // flush
-          sc.style.transition = '';
-        } else {
-          sc.style.maxHeight = '0';
-        }
-      });
-    });
   });
 }
 
