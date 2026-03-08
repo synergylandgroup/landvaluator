@@ -1947,7 +1947,7 @@ function _dropSetFocus(listEl, idx) {
   _dropFocusIdx = idx;
   const el = items[idx];
   el.classList.add('kbd-focus');
-  el.scrollIntoView({ block: 'nearest' });
+  el.scrollIntoView({ block: 'start' });
 }
 
 function _dropGetItems(listEl) {
