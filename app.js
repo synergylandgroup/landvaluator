@@ -78,6 +78,45 @@ const DB = {
 };
 
 // =========================================================
+// FIXED TOOLTIP HELPER
+// Used for sidebar elements inside overflow:hidden containers
+// where position:absolute tooltips get clipped.
+// =========================================================
+const _ftip = {
+  _el: null,
+  _timer: null,
+  show(text, triggerEl) {
+    if (!this._el) this._el = document.getElementById('fixedTip');
+    if (!this._el) return;
+    const r = triggerEl.getBoundingClientRect();
+    this._el.textContent = text;
+    this._el.classList.remove('show');
+    // Position above the trigger, centered on it
+    // We must set position first (off-screen) to measure width
+    this._el.style.left = '-9999px';
+    this._el.style.top = '-9999px';
+    this._el.style.opacity = '0';
+    this._el.style.display = 'block';
+    const tw = this._el.offsetWidth;
+    const left = Math.max(4, Math.min(r.left + r.width / 2 - tw / 2, window.innerWidth - tw - 4));
+    const top = r.top - this._el.offsetHeight - 10;
+    this._el.style.left = left + 'px';
+    this._el.style.top = top + 'px';
+    // Move the arrow to point at the trigger center
+    const arrowLeft = (r.left + r.width / 2) - left;
+    this._el.style.setProperty('--arrow-left', arrowLeft + 'px');
+    clearTimeout(this._timer);
+    this._el.classList.add('show');
+  },
+  hide() {
+    if (!this._el) this._el = document.getElementById('fixedTip');
+    if (!this._el) return;
+    this._el.classList.remove('show');
+    clearTimeout(this._timer);
+  }
+};
+
+// =========================================================
 // STATES DATA
 // =========================================================
 const STATES = [["Alabama","AL"],["Alaska","AK"],["Arizona","AZ"],["Arkansas","AR"],["California","CA"],["Colorado","CO"],["Connecticut","CT"],["Delaware","DE"],["Florida","FL"],["Georgia","GA"],["Hawaii","HI"],["Idaho","ID"],["Illinois","IL"],["Indiana","IN"],["Iowa","IA"],["Kansas","KS"],["Kentucky","KY"],["Louisiana","LA"],["Maine","ME"],["Maryland","MD"],["Massachusetts","MA"],["Michigan","MI"],["Minnesota","MN"],["Mississippi","MS"],["Missouri","MO"],["Montana","MT"],["Nebraska","NE"],["Nevada","NV"],["New Hampshire","NH"],["New Jersey","NJ"],["New Mexico","NM"],["New York","NY"],["North Carolina","NC"],["North Dakota","ND"],["Ohio","OH"],["Oklahoma","OK"],["Oregon","OR"],["Pennsylvania","PA"],["Rhode Island","RI"],["South Carolina","SC"],["South Dakota","SD"],["Tennessee","TN"],["Texas","TX"],["Utah","UT"],["Vermont","VT"],["Virginia","VA"],["Washington","WA"],["West Virginia","WV"],["Wisconsin","WI"],["Wyoming","WY"]];
@@ -1139,7 +1178,12 @@ function renderPolygonList() {
     const hdr = document.createElement('div');
     hdr.className = 'state-header' + (isStateOpen ? ' open' : '');
     const _stateZoneTip = totalZones === 1 ? `1 zone in ${fullName}` : `${totalZones} zones in ${fullName}`;
-    hdr.innerHTML = `<span class="state-arrow-zone"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 2L8 6L4 10" stroke="#a8bcd4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="tip-wrap" style="flex:1;min-width:0;"><span class="sg-name">${fullName}</span><span class="tip-box tip-sidebar">Zoom map into ${fullName}</span></span><span class="tip-wrap"><span class="sg-count" style="pointer-events:none;">${totalZones}</span><span class="tip-box tip-sidebar" style="right:0;left:auto;transform:none;">${_stateZoneTip}</span></span>`;
+    hdr.innerHTML = `<span class="state-arrow-zone"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 2L8 6L4 10" stroke="#a8bcd4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="sg-name">${fullName}</span><span class="sg-count" style="pointer-events:none;">${totalZones}</span>`;
+    // Wire fixed tooltips — avoids overflow:hidden clipping in sidebar
+    hdr.querySelector('.sg-name').addEventListener('mouseenter', e => _ftip.show('Zoom map into ' + fullName, e.currentTarget));
+    hdr.querySelector('.sg-name').addEventListener('mouseleave', () => _ftip.hide());
+    hdr.querySelector('.sg-count').addEventListener('mouseenter', e => _ftip.show(_stateZoneTip, e.currentTarget));
+    hdr.querySelector('.sg-count').addEventListener('mouseleave', () => _ftip.hide());
     hdr.onclick = e => {
       if (e.target.closest('.state-arrow-zone')) {
         const isOpen = hdr.classList.toggle('open');
@@ -1184,13 +1228,19 @@ function renderPolygonList() {
       cHdr.innerHTML = `
         <div class="county-header-pill${isCountyOpen ? ' open' : ''}">
           <span class="county-arrow-zone"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 2L8 6L4 10" stroke="#a8bcd4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-          <span class="tip-wrap" style="flex:1;min-width:0;"><span class="county-name-text">${countyName} County</span><span class="tip-box tip-sidebar" style="right:auto;left:8px;">Zoom map into ${countyName} County</span></span>
-          <span class="tip-wrap"><span class="county-zone-pill" style="pointer-events:none">${cPolys.length}</span><span class="tip-box tip-sidebar">${cPolys.length === 1 ? `1 zone in ${countyName} County` : `${cPolys.length} zones in ${countyName} County`}</span></span>
+          <span class="county-name-text">${countyName} County</span>
+          <span class="county-zone-pill" style="pointer-events:none">${cPolys.length}</span>
           <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="openSheetsModalForCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">${sheetIconSVG}</button><span class="tip-box tip-sidebar">${sheetIconTooltip}</span></span>
           <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="shareCounty('${stateAbbr}','${CSS.escape(countyName)}',event)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7d95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button><span class="tip-box tip-sidebar">Copy URL to ${countyName} County's zones page.</span></span>
           <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="deleteCounty('${stateAbbr}','${CSS.escape(countyName)}',event)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7d95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button><span class="tip-box tip-sidebar">Delete saved zones in ${countyName} County</span></span>
         </div>
       `;
+      // Wire fixed tooltips for county name and count badge
+      const _cnZoneTip = cPolys.length === 1 ? '1 zone in ' + countyName + ' County' : cPolys.length + ' zones in ' + countyName + ' County';
+      const _cnNameEl = cHdr.querySelector('.county-name-text');
+      const _cnPillEl = cHdr.querySelector('.county-zone-pill');
+      if (_cnNameEl) { _cnNameEl.addEventListener('mouseenter', e => _ftip.show('Zoom map into ' + countyName + ' County', e.currentTarget)); _cnNameEl.addEventListener('mouseleave', () => _ftip.hide()); }
+      if (_cnPillEl) { _cnPillEl.addEventListener('mouseenter', e => _ftip.show(_cnZoneTip, e.currentTarget)); _cnPillEl.addEventListener('mouseleave', () => _ftip.hide()); }
 
       const cContent = document.createElement('div');
       cContent.className = 'county-content' + (isCountyOpen ? '' : ' ac-collapsed');
