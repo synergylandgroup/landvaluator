@@ -2610,6 +2610,7 @@ function _addCountyBoundaryForKey(key, geojson) {
   // Click on county fill area (when no zone layer is on top)
   map.on('click', sid+'-fill', async (e) => {
     if (drawMode === 'polygon') return;
+    if (map.queryRenderedFeatures(e.point, { layers: [LAYER_PINS] }).length) return;
     const [sa, cn] = key.split('|');
     const alreadySelected = stateSelect.value === sa && document.getElementById('countySelect').value === cn;
     if (!alreadySelected) {
@@ -2631,7 +2632,7 @@ function _addCountyBoundaryForKey(key, geojson) {
       else { sheetConfig = null; setConnected(false); }
       renderPolygonList();
     }
-    loadCounty();
+    // loadCounty() intentionally removed — use toolbar county name to zoom
   });
   map.on('mouseenter', sid+'-fill', () => { if (drawMode !== 'polygon') map.getCanvas().style.cursor = 'pointer'; });
   map.on('mouseleave', sid+'-fill', () => { if (drawMode !== 'polygon') map.getCanvas().style.cursor = ''; });
