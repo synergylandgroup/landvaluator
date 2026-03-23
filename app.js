@@ -87,28 +87,34 @@ const _ftip = {
   show(text, triggerEl) {
     if (!this._el) this._el = document.getElementById('fixedTip');
     if (!this._el) return;
-    const r = triggerEl.getBoundingClientRect();
+    // Set text and temporarily make visible but transparent to measure
     this._el.textContent = text;
-    // Render off-screen first so we can measure dimensions
-    this._el.style.cssText = 'left:-9999px;top:-9999px;display:block;opacity:0;';
-    // Use rAF to ensure layout is complete before measuring
+    this._el.style.visibility = 'hidden';
+    this._el.style.opacity = '0';
+    this._el.style.left = '0px';
+    this._el.style.top = '0px';
+    this._el.classList.add('show');
+    // Measure after browser lays out
     requestAnimationFrame(() => {
+      const r = triggerEl.getBoundingClientRect();
       const tw = this._el.offsetWidth;
       const th = this._el.offsetHeight;
       const left = Math.max(4, Math.min(r.left + r.width / 2 - tw / 2, window.innerWidth - tw - 4));
       const top = r.top - th - 10;
+      const arrowLeft = Math.round((r.left + r.width / 2) - left);
       this._el.style.left = left + 'px';
       this._el.style.top = top + 'px';
-      // Arrow points at center of trigger element
-      const arrowLeft = Math.round((r.left + r.width / 2) - left);
       this._el.style.setProperty('--arrow-left', arrowLeft + 'px');
-      this._el.classList.add('show');
+      // Now reveal
+      this._el.style.visibility = '';
+      this._el.style.opacity = '';
     });
   },
   hide() {
     if (!this._el) this._el = document.getElementById('fixedTip');
     if (!this._el) return;
     this._el.classList.remove('show');
+    this._el.style.visibility = '';
     this._el.style.opacity = '';
   }
 };
