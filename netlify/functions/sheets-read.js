@@ -71,8 +71,10 @@ exports.handler = async (event) => {
         state:   get(row, colIndex['State']),
         zip:     get(row, colIndex['ZIP']),
         county:  get(row, countyColIndex),
-        acreage: get(row, colIndex['Acreage']),
-        zone:    get(row, colIndex['County Zone']),
+        acreage:     get(row, colIndex['Acreage']),
+        liAcreage:   get(row, colIndex['LI Calculated Acreage']),
+        parcelLink:  get(row, colIndex['Parcel Link']),
+        zone:        get(row, colIndex['County Zone']),
       });
     });
 
