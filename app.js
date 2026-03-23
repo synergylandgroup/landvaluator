@@ -1078,7 +1078,7 @@ async function saveAndSyncZone() {
           prop.zone = poly.letter;
           poly.propCount = (poly.propCount || 0) + 1;
           assigned++;
-          if (prop.rowIndex) assignments.push({ rowIndex: prop.rowIndex, zone: poly.letter });
+          if (prop.apn) assignments.push({ apn: prop.apn, zone: poly.letter });
           break;
         }
       }
@@ -1097,7 +1097,7 @@ async function saveAndSyncZone() {
       const zr = await fetch('/.netlify/functions/sheets-write-zones', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sheetId: cfg.sheetId, sheetName: 'Scrubbed and Priced', assignments }),
+        body: JSON.stringify({ sheetId: cfg.sheetId, sheetName: 'Scrubbed and Priced', colAPN: cfg.colAPN || 'APN', assignments }),
       });
       const zd = await zr.json();
       if (!zr.ok) throw new Error(zd.error || 'Zone write failed');
@@ -2168,7 +2168,7 @@ async function runAssignment() {
         poly.propCount++;
         // marker coloring disabled (pins not shown)
         assigned++;
-        if (prop.rowIndex) assignments.push({ rowIndex: prop.rowIndex, zone: poly.letter });
+        if (prop.apn) assignments.push({ apn: prop.apn, zone: poly.letter });
         break;
       }
     }
@@ -2193,6 +2193,7 @@ async function runAssignment() {
         body: JSON.stringify({
           sheetId:   activeCfg.sheetId,
           sheetName: 'Scrubbed and Priced',
+          colAPN:    activeCfg.colAPN || 'APN',
           assignments,
         }),
       });
