@@ -807,38 +807,18 @@ function openSheetsModalForCounty(stateAbbr, countyName, e) {
 }
 
 // -- Share a single county via short URL --
-async function shareCounty(stateAbbr, countyName, e) {
+function shareCounty(stateAbbr, countyName, e) {
   if (e) e.stopPropagation();
-  const countyPolys = polygons.filter(p => p.stateAbbr === stateAbbr && p.countyName === countyName);
-  if (!countyPolys.length) { showToast('No zones to share for this county', 'error'); return; }
-  showToast('Generating share link...', 'info');
-  try {
-    const payload = { version: 2, stateAbbr, countyName, zones: countyPolys.map(_polyToJSON) };
-    const r = await fetch('/.netlify/functions/share-save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+  // Strip " County" suffix if present, to match the format LandValuator expects
+  const cleanCounty = (countyName || '').replace(/\s+county$/i, '').trim();
+  const url = `${window.location.origin}${window.location.pathname}?state=${encodeURIComponent(stateAbbr)}&county=${encodeURIComponent(cleanCounty)}`;
+  navigator.clipboard.writeText(url)
+    .then(() => showToast('County link copied!', 'success'))
+    .catch(() => {
+      const b = document.getElementById('shareBanner');
+      b.textContent = '🔗 ' + url; b.style.display = 'block';
+      setTimeout(() => b.style.display = 'none', 12000);
     });
-    const data = await r.json();
-    if (!data.id) throw new Error(data.error || 'No ID returned');
-
-    let url;
-    if (data.fallback) {
-      // Blob storage not configured — fall back to encoded URL
-      const encoded = btoa(encodeURIComponent(JSON.stringify(data.data)));
-      url = `${window.location.origin}${window.location.pathname}?zones=${encoded}`;
-    } else {
-      url = `${window.location.origin}${window.location.pathname}?share=${data.id}`;
-    }
-
-    navigator.clipboard.writeText(url)
-      .then(() => showToast('Share link copied!', 'success'))
-      .catch(() => {
-        const b = document.getElementById('shareBanner');
-        b.textContent = '🔗 ' + url; b.style.display = 'block';
-        setTimeout(() => b.style.display = 'none', 12000);
-      });
-  } catch(err) { showToast('Share failed: ' + err.message, 'error'); }
 }
 
 // -- Load zones from short share URL --
@@ -1338,7 +1318,7 @@ function renderPolygonList() {
           <span class="county-name-text">${countyName} County</span>
           <span class="county-zone-pill">${cPolys.length}</span>
           <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="openSheetsModalForCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">${sheetIconSVG}</button><span class="tip-box tip-sidebar">${sheetIconTooltip}</span></span>
-          <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="shareCounty('${stateAbbr}','${CSS.escape(countyName)}',event)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7d95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button><span class="tip-box tip-sidebar">Copy URL to ${countyName} County's zones page.</span></span>
+          <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="shareCounty('${stateAbbr}','${CSS.escape(countyName)}',event)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7d95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button><span class="tip-box tip-sidebar">Copy link to open ${countyName} County in LandValuator.</span></span>
           <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="deleteCounty('${stateAbbr}','${CSS.escape(countyName)}',event)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7d95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button><span class="tip-box tip-sidebar">Delete saved zones in ${countyName} County</span></span>
         </div>
       `;
@@ -2693,24 +2673,37 @@ map.on('load', () => {
     _mapInitComplete = true; // 1.2 — mark init done; style.load may now redraw county layers on style switch
   }, 600);
 
+  // Check for ?state=XX&county=Name deep-link params (e.g. from "Open in LandValuator" button)
+  const _urlParams   = new URLSearchParams(window.location.search);
+  const _urlState    = (_urlParams.get('state')  || '').trim().toUpperCase();
+  const _urlCounty   = (_urlParams.get('county') || '').trim();
+  const _hasDeepLink = !!(_urlState && _urlCounty);
+
   // Restore state/county dropdowns and reconnect sheet
+  // Deep-link params override persisted state if present
   const appState = loadAppState();
-  if (appState && appState.state) {
-    stateSelect.value = appState.state;
-    _syncStateTrigger(appState.state);
+  const _initState  = _hasDeepLink ? _urlState  : (appState && appState.state);
+  const _initCounty = _hasDeepLink ? _urlCounty : (appState && appState.county);
+
+  if (_initState) {
+    stateSelect.value = _initState;
+    _syncStateTrigger(_initState);
     loadCounties().then(() => {
       const countySelect = document.getElementById('countySelect');
-      if (appState.county) {
-        countySelect.value = appState.county;
-        _syncCountyTrigger(appState.county);
+      if (_initCounty) {
+        countySelect.value = _initCounty;
+        _syncCountyTrigger(_initCounty);
 
         // Restore active sheet config for currently selected county
-        const saved = _getSheetConfig(appState.state, appState.county);
+        const saved = _getSheetConfig(_initState, _initCounty);
         if (saved) { sheetConfig = saved; setConnected(true); }
         renderPolygonList();
 
         // Ensure boundary enforcement is active for restored county (1.2 — cache only, no visual layer)
-        loadCountyBoundaryOnly(appState.state, appState.county, true);
+        loadCountyBoundaryOnly(_initState, _initCounty, true);
+
+        // If deep-linked, zoom the map to the county
+        if (_hasDeepLink) { loadCounty(); }
 
         // Reconnect ALL counties that have saved sheet configs
         const _allConfigs = Object.entries(sheetConfigs || {});
@@ -2732,7 +2725,7 @@ map.on('load', () => {
 
                 // Load props for this county (don't overwrite if already loaded for current county)
                 const _cnNorm = _cn.toLowerCase().trim();
-                const isCurrentCounty = _sa === appState.state && _cnNorm === (appState.county||'').toLowerCase().trim();
+                const isCurrentCounty = _sa === _initState && _cnNorm === (_initCounty||'').toLowerCase().trim();
                 if (isCurrentCounty || !properties.length) {
                   loadPropertiesFromFunction(data.properties, _cn, data.scrubbedApns);
                   document.getElementById('statProps').textContent = properties.length;
