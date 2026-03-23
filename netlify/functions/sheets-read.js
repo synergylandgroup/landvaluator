@@ -12,7 +12,7 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
 
   try {
-    const { sheetId, sheetName = 'LI Raw Dataset', metaOnly } = JSON.parse(event.body || '{}');
+    const { sheetId, sheetName = 'LI Raw Dataset', colCounty = 'County', colAPN = 'APN', metaOnly } = JSON.parse(event.body || '{}');
     if (!sheetId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'sheetId required' }) };
 
     const token = await getAccessToken();
@@ -27,16 +27,21 @@ exports.handler = async (event) => {
     }
 
     if (metaOnly) {
-      return { statusCode: 200, headers, body: JSON.stringify({ spreadsheetTitle, totalRows: 0, properties: [] }) };
+      return { statusCode: 200, headers, body: JSON.stringify({ spreadsheetTitle, totalRows: 0, properties: [], scrubbedApns: [] }) };
     }
 
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(sheetName)}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) throw new Error(`Sheets API ${res.status}: ${await res.text()}`);
+    // Fetch LI Raw Dataset and Scrubbed and Priced in parallel
+    const scrubbedTabName = 'Scrubbed and Priced';
+    const [rawRes, scrubbedRes] = await Promise.all([
+      fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(sheetName)}`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(scrubbedTabName)}`, { headers: { Authorization: `Bearer ${token}` } }),
+    ]);
+    if (!rawRes.ok) throw new Error(`Sheets API (raw) ${rawRes.status}: ${await rawRes.text()}`);
 
-    const data = await res.json();
-    const rows = data.values || [];
-    if (rows.length < 2) return { statusCode: 200, headers, body: JSON.stringify({ spreadsheetTitle, properties: [], totalRows: 0 }) };
+    // --- LI Raw Dataset ---
+    const rawData = await rawRes.json();
+    const rows = rawData.values || [];
+    if (rows.length < 2) return { statusCode: 200, headers, body: JSON.stringify({ spreadsheetTitle, properties: [], totalRows: 0, scrubbedApns: [] }) };
 
     const headerRow = rows[0];
     const dataRows = rows.slice(1);
@@ -50,6 +55,9 @@ exports.handler = async (event) => {
     }
 
     const get = (row, col) => (col !== undefined && row[col]) ? row[col].trim() : '';
+    const apnColIndex = colIndex[colAPN] !== undefined ? colIndex[colAPN] : colIndex['APN'];
+    const countyColIndex = colIndex[colCounty] !== undefined ? colIndex[colCounty] : colIndex['County'];
+
     const properties = [];
     dataRows.forEach((row, i) => {
       const lat = parseFloat(get(row, latCol));
@@ -57,18 +65,36 @@ exports.handler = async (event) => {
       if (isNaN(lat) || isNaN(lng)) return;
       properties.push({
         rowIndex: i + 2, lat, lng,
-        apn:     get(row, colIndex['APN']),
+        apn:     get(row, apnColIndex),
         address: get(row, colIndex['Parcel Address']),
         city:    get(row, colIndex['City']),
         state:   get(row, colIndex['State']),
         zip:     get(row, colIndex['ZIP']),
-        county:  get(row, colIndex['County']),
+        county:  get(row, countyColIndex),
         acreage: get(row, colIndex['Acreage']),
         zone:    get(row, colIndex['County Zone']),
       });
     });
 
-    return { statusCode: 200, headers, body: JSON.stringify({ spreadsheetTitle, properties, totalRows: dataRows.length }) };
+    // --- Scrubbed and Priced: extract APN whitelist ---
+    let scrubbedApns = [];
+    if (scrubbedRes.ok) {
+      const scrubbedData = await scrubbedRes.json();
+      const sRows = scrubbedData.values || [];
+      if (sRows.length >= 1) {
+        const sHeader = sRows[0];
+        const sColIndex = {};
+        sHeader.forEach((h, i) => { if (h) sColIndex[h.trim()] = i; });
+        const sApnCol = sColIndex[colAPN] !== undefined ? sColIndex[colAPN] : sColIndex['APN'];
+        if (sApnCol !== undefined) {
+          scrubbedApns = sRows.slice(1)
+            .map(row => (row[sApnCol] || '').trim())
+            .filter(Boolean);
+        }
+      }
+    }
+
+    return { statusCode: 200, headers, body: JSON.stringify({ spreadsheetTitle, properties, totalRows: dataRows.length, scrubbedApns }) };
   } catch (err) {
     console.error('sheets-read error:', err);
     return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };

@@ -12,7 +12,7 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
 
   try {
-    const { sheetId, sheetName = 'LI Raw Dataset', assignments } = JSON.parse(event.body || '{}');
+    const { sheetId, sheetName = 'Scrubbed and Priced', assignments } = JSON.parse(event.body || '{}');
     if (!sheetId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'sheetId required' }) };
     if (!assignments || !assignments.length) return { statusCode: 400, headers, body: JSON.stringify({ error: 'assignments required' }) };
 
