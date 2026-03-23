@@ -843,7 +843,7 @@ function openZoneEditor(polyId) {
   _editingDescId = polyId;
 
   // Header
-  document.getElementById('zeBadge').textContent = `ZONE ${p.letter}`;
+  document.getElementById('zeBadge').textContent = `ZONE ${p.letter} PRICING PANEL`;
   document.getElementById('zeTitle').textContent = p.name;
   // zeAllZones checkbox removed from UI
 
