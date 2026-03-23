@@ -181,6 +181,9 @@ const SRC_FILL    = '__draw_fill';
 const SRC_LINE    = '__draw_line';
 const SRC_PREVIEW = '__draw_preview';
 const SRC_VERTS   = '__draw_verts';
+const SRC_PINS    = '__property_pins';
+const LAYER_PINS  = '__property_pins_layer';
+let   _pinsVisible = false;
 
 // =========================================================
 // BUILD COLOR SWATCHES — runs immediately on parse
@@ -309,6 +312,8 @@ let _mapInitComplete = false;
 
 map.on('style.load', () => {
   _initDrawLayers();
+  _initPinLayer();
+  if (_pinsVisible) _rebuildPins();
   // 1.2 — on initial page load, skip zone polygon fills/lines and county boundaries
   // They only appear after the user actively selects a county.
   // On style switch (_mapInitComplete=true), restore everything normally.
@@ -361,6 +366,98 @@ function _clearPreviews() {
   _setDrawSrc(SRC_LINE, _emptyLine());
   _setDrawSrc(SRC_PREVIEW, _emptyLine());
   _setDrawSrc(SRC_VERTS, _emptyPts());
+}
+
+// =========================================================
+// PROPERTY PIN LAYER
+// =========================================================
+let _pinPopup = null;
+
+function _initPinLayer() {
+  if (!map.getSource(SRC_PINS)) {
+    map.addSource(SRC_PINS, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  }
+  if (!map.getLayer(LAYER_PINS)) {
+    map.addLayer({
+      id: LAYER_PINS,
+      type: 'circle',
+      source: SRC_PINS,
+      paint: {
+        'circle-radius': 5,
+        'circle-color': '#4a90d9',
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 2,
+        'circle-opacity': _pinsVisible ? 1 : 0,
+        'circle-stroke-opacity': _pinsVisible ? 1 : 0,
+      },
+    });
+
+    map.on('click', LAYER_PINS, (e) => {
+      if (!e.features.length) return;
+      const f = e.features[0];
+      const p = f.properties;
+      const coords = e.features[0].geometry.coordinates.slice();
+
+      if (_pinPopup) { _pinPopup.remove(); _pinPopup = null; }
+
+      const zoneLabel = (p.zone && p.zone !== 'null') ? `Zone ${p.zone}` : 'Unassigned';
+      const acreage   = p.acreage   ? `${p.acreage} ac`   : '—';
+      const liAcreage = p.liAcreage ? `${p.liAcreage} ac` : '—';
+      const linkHtml  = p.parcelLink
+        ? `<a href="${p.parcelLink}" target="_blank" rel="noopener" style="display:block;margin-top:9px;text-align:center;font-size:11px;font-weight:700;color:#5b7fa6;background:#edf2f8;border-radius:6px;padding:5px 0;text-decoration:none;letter-spacing:0.03em;">View property page ↗</a>`
+        : '';
+
+      const html = `
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-width:190px;max-width:220px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:12px;font-weight:700;color:#1a2332">${p.apn || '—'}</span>
+            <span style="font-size:10px;font-weight:700;background:#edf2f8;color:#2c5282;border-radius:4px;padding:2px 6px">${zoneLabel}</span>
+          </div>
+          <div style="font-size:11px;color:#6b7d95;border-bottom:1px solid #eee;padding-bottom:3px;margin-bottom:3px;display:flex;justify-content:space-between"><span>County</span><span style="color:#1a2332;font-weight:500">${p.county ? p.county + ', ' + p.state : '—'}</span></div>
+          <div style="font-size:11px;color:#6b7d95;border-bottom:1px solid #eee;padding-bottom:3px;margin-bottom:3px;display:flex;justify-content:space-between"><span>Acreage</span><span style="color:#1a2332;font-weight:500">${acreage}</span></div>
+          <div style="font-size:11px;color:#6b7d95;padding-bottom:3px;display:flex;justify-content:space-between"><span>Calc. acreage</span><span style="color:#1a2332;font-weight:500">${liAcreage}</span></div>
+          ${linkHtml}
+        </div>`;
+
+      _pinPopup = new mapboxgl.Popup({ offset: 14, closeButton: true, maxWidth: '240px' })
+        .setLngLat(coords)
+        .setHTML(html)
+        .addTo(map);
+    });
+
+    map.on('mouseenter', LAYER_PINS, () => { if (_pinsVisible) map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', LAYER_PINS, () => { if (!drawMode) map.getCanvas().style.cursor = ''; });
+  }
+}
+
+function _rebuildPins() {
+  if (!map.getSource(SRC_PINS)) return;
+  const features = properties.map(p => ({
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
+    properties: {
+      apn:        p.apn || '',
+      county:     p.county || '',
+      state:      p.state || '',
+      acreage:    p.acreage || '',
+      liAcreage:  p.liAcreage || '',
+      parcelLink: p.parcelLink || '',
+      zone:       p.zone || null,
+    },
+  }));
+  map.getSource(SRC_PINS).setData({ type: 'FeatureCollection', features });
+}
+
+function _togglePins(force) {
+  _pinsVisible = (force !== undefined) ? force : !_pinsVisible;
+  const el = document.getElementById('pinToggle');
+  if (el) el.classList.toggle('on', _pinsVisible);
+  if (!map.getLayer(LAYER_PINS)) return;
+  const opacity = _pinsVisible ? 1 : 0;
+  map.setPaintProperty(LAYER_PINS, 'circle-opacity', opacity);
+  map.setPaintProperty(LAYER_PINS, 'circle-stroke-opacity', opacity);
+  if (!_pinsVisible && _pinPopup) { _pinPopup.remove(); _pinPopup = null; }
+  if (_pinsVisible) _rebuildPins();
 }
 
 // =========================================================
@@ -1077,6 +1174,7 @@ async function saveAndSyncZone() {
       }
     });
     document.getElementById('statAssigned').textContent = assigned;
+    if (_pinsVisible) _rebuildPins();
     // Persist assigned count so it survives refresh
     countyPolygons.forEach(poly => {
       const matched = assignments.filter(a => a.zone === poly.letter).length;
@@ -2087,6 +2185,7 @@ function _finishSheetConnect({ sa, cn, sheetConfig, sheetId, rawInput, sheetTitl
       }
     });
     document.getElementById('statAssigned').textContent = assigned;
+    if (_pinsVisible) _rebuildPins();
     renderPolygonList();
     persistZones();
   }
@@ -2134,10 +2233,11 @@ function loadPropertiesFromFunction(props, countyOverride, scrubbedApns) {
     }
 
     // Store property data without map marker (pins disabled pending better implementation)
-    properties.push({ lat, lng, apn, address, city, state, zip, county, acreage, zone: zone || null, rowIndex, marker: null });
+    properties.push({ lat, lng, apn, address, city, state, zip, county, acreage, liAcreage: prop.liAcreage || '', parcelLink: prop.parcelLink || '', zone: zone || null, rowIndex, marker: null });
   });
   document.getElementById('statProps').textContent = properties.length;
   if (skipped) showToast(`${skipped} properties skipped — coordinates out of range or not in scrubbed list`, 'info');
+  if (_pinsVisible) _rebuildPins();
 }
 
 // =========================================================
@@ -2175,6 +2275,7 @@ async function runAssignment() {
   });
 
   document.getElementById('statAssigned').textContent = assigned;
+  if (_pinsVisible) _rebuildPins();
   renderPolygonList();
   showToast(`${assigned} properties assigned — writing to sheet...`, 'info');
 
@@ -2692,6 +2793,7 @@ document.getElementById('sheetsModal').addEventListener('click', e => { if (e.ta
 // =========================================================
 map.on('load', () => {
   _initDrawLayers();
+  _initPinLayer();
 
   _initTooltipToggle(); // sets body class and updates button label
 
