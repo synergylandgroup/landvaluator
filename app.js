@@ -403,6 +403,7 @@ function _initPinLayer() {
       const zoneLabel = (p.zone && p.zone !== 'null') ? `Zone ${p.zone}` : 'Unassigned';
       const acreage   = p.acreage   ? `${p.acreage} ac`   : '—';
       const liAcreage = p.liAcreage ? `${p.liAcreage} ac` : '—';
+      const ownerRow  = p.ownerName ? `<div style="font-size:11px;color:#6b7d95;border-bottom:1px solid #eee;padding-bottom:3px;margin-bottom:3px;display:flex;justify-content:space-between"><span>Owner</span><span style="color:#1a2332;font-weight:500;max-width:130px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.ownerName}</span></div>` : '';
       const linkHtml  = p.parcelLink
         ? `<a href="${p.parcelLink}" target="_blank" rel="noopener" style="display:block;margin-top:9px;text-align:center;font-size:11px;font-weight:700;color:#5b7fa6;background:#edf2f8;border-radius:6px;padding:5px 0;text-decoration:none;letter-spacing:0.03em;">View property page ↗</a>`
         : '';
@@ -411,9 +412,10 @@ function _initPinLayer() {
         <style>.mapboxgl-popup-content{background:#ffffff!important;border-radius:10px!important;padding:12px 14px!important;box-shadow:0 4px 20px rgba(0,0,0,0.18)!important;border:1px solid #dde1e9!important;}.mapboxgl-popup-tip{border-top-color:#ffffff!important;}</style>
         <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-width:190px;max-width:220px;background:#ffffff;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <span style="font-size:12px;font-weight:700;color:#1a2332">${p.apn || '—'}</span>
+            <span style="font-size:11px;color:#6b7d95;font-weight:500">APN: <span style="color:#1a2332;font-weight:700">${p.apn || '—'}</span></span>
             <span style="font-size:10px;font-weight:700;background:#edf2f8;color:#2c5282;border-radius:4px;padding:2px 6px">${zoneLabel}</span>
           </div>
+          ${ownerRow}
           <div style="font-size:11px;color:#6b7d95;border-bottom:1px solid #eee;padding-bottom:3px;margin-bottom:3px;display:flex;justify-content:space-between"><span>County</span><span style="color:#1a2332;font-weight:500">${p.county ? p.county + ', ' + p.state : '—'}</span></div>
           <div style="font-size:11px;color:#6b7d95;border-bottom:1px solid #eee;padding-bottom:3px;margin-bottom:3px;display:flex;justify-content:space-between"><span>Acreage</span><span style="color:#1a2332;font-weight:500">${acreage}</span></div>
           <div style="font-size:11px;color:#6b7d95;padding-bottom:3px;display:flex;justify-content:space-between"><span>Calc. acreage</span><span style="color:#1a2332;font-weight:500">${liAcreage}</span></div>
@@ -443,6 +445,7 @@ function _rebuildPins() {
       acreage:    p.acreage || '',
       liAcreage:  p.liAcreage || '',
       parcelLink: p.parcelLink || '',
+      ownerName:  p.ownerName || '',
       zone:       p.zone || null,
     },
   }));
@@ -772,7 +775,6 @@ function _finishPolygon() {
 
   // Validate polygon is within selected county boundary
   if (_pendingCountyGeoJSON) {
-    // Check if centroid of drawn polygon is within county
     const avgLng = pts.reduce((s,p) => s+p[0], 0) / pts.length;
     const avgLat = pts.reduce((s,p) => s+p[1], 0) / pts.length;
     const inCounty = _pendingCountyGeoJSON.features.some(f => {
@@ -782,6 +784,43 @@ function _finishPolygon() {
     });
     if (!inCounty) {
       showToast('Zone must be drawn within the selected county boundary', 'error');
+      cancelDraw();
+      return;
+    }
+  }
+
+  // Overlap detection — sample interior points of new polygon against existing zones in same county
+  const sa = document.getElementById('stateSelect').value;
+  const cn = document.getElementById('countySelect').value;
+  const _cnNorm = (cn || '').toLowerCase().trim();
+  const existingPolys = polygons.filter(p =>
+    p.stateAbbr === sa && (p.countyName || '').toLowerCase().trim() === _cnNorm && p.points && p.points.length >= 3
+  );
+  if (existingPolys.length) {
+    // Sample a grid of ~25 interior points from the new polygon's bounding box
+    const lngs = pts.map(p => p[0]), lats = pts.map(p => p[1]);
+    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+    const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+    const steps = 5;
+    const newPtsAsLngLat = pts; // already [lng, lat]
+    let overlappingZone = null;
+    outer: for (let i = 0; i <= steps; i++) {
+      for (let j = 0; j <= steps; j++) {
+        const sLng = minLng + (maxLng - minLng) * (i / steps);
+        const sLat = minLat + (maxLat - minLat) * (j / steps);
+        // Check sample point is inside new polygon
+        if (!pointInPolygon(sLat, sLng, newPtsAsLngLat)) continue;
+        // Check if it's inside any existing polygon
+        for (const ep of existingPolys) {
+          if (pointInPolygon(sLat, sLng, ep.points)) {
+            overlappingZone = ep;
+            break outer;
+          }
+        }
+      }
+    }
+    if (overlappingZone) {
+      showToast(`Zone overlaps with Zone ${overlappingZone.letter} — adjust your polygon to avoid overlap`, 'error');
       cancelDraw();
       return;
     }
@@ -1146,7 +1185,7 @@ async function saveAndSyncZone() {
       const pd = await pr.json();
       if (pd.properties && pd.properties.length) {
         // Pass county explicitly so filter uses captured cn, not live dropdown
-        loadPropertiesFromFunction(pd.properties, cn, pd.scrubbedApns);
+        loadPropertiesFromFunction(pd.properties, cn, pd.scrubbedApns, pd.ownerMap);
         document.getElementById('statProps').textContent = properties.length;
       }
     } catch(e) { console.warn('Could not prefetch properties:', e); }
@@ -1428,14 +1467,15 @@ function renderPolygonList() {
         <div class="county-header-pill${isCountyOpen ? ' open' : ''}">
           <span class="county-arrow-zone"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 2L8 6L4 10" stroke="#a8bcd4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           <span class="county-name-text">${countyName} County</span>
-          <span class="county-zone-pill">${cPolys.length}</span>
+          <span class="county-zone-pill">${cPolys.reduce((s,z) => s + (z.propCount||0), 0)}</span>
           <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="openSheetsModalForCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">${sheetIconSVG}</button><span class="tip-box tip-sidebar">${sheetIconTooltip}</span></span>
           <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="shareCounty('${stateAbbr}','${CSS.escape(countyName)}',event)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7d95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button><span class="tip-box tip-sidebar">Copy link to open ${countyName} County in LandValuator.</span></span>
           <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="deleteCounty('${stateAbbr}','${CSS.escape(countyName)}',event)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7d95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button><span class="tip-box tip-sidebar">Delete saved zones in ${countyName} County</span></span>
         </div>
       `;
       // Wire fixed tooltips for county name and count badge
-      const _cnZoneTip = cPolys.length === 1 ? '1 zone in ' + countyName + ' County' : cPolys.length + ' zones in ' + countyName + ' County';
+      const _cnPropTotal = cPolys.reduce((s,z) => s + (z.propCount||0), 0);
+      const _cnZoneTip = _cnPropTotal + ' propert' + (_cnPropTotal === 1 ? 'y' : 'ies') + ' in ' + countyName + ' County';
       const _cnNameEl = cHdr.querySelector('.county-name-text');
       const _cnPillEl = cHdr.querySelector('.county-zone-pill');
       if (_cnNameEl) { _cnNameEl.addEventListener('mouseenter', e => _ftip.show('Zoom map into ' + countyName + ' County', e.currentTarget)); _cnNameEl.addEventListener('mouseleave', () => _ftip.hide()); }
@@ -1462,16 +1502,16 @@ function renderPolygonList() {
       const polyDiv = document.createElement('div');
       polyDiv.className = 'county-polys';
 
-      cPolys.forEach(p => {
+      cPolys.sort((a, b) => (a.letter || '').localeCompare(b.letter || '')).forEach(p => {
         const div = document.createElement('div');
         div.className = 'polygon-item';
         div.innerHTML = `
           <div style="width:10px;height:10px;border-radius:50%;background:${p.color};flex-shrink:0"></div>
           <div class="poly-info">
-            <div class="poly-name">ZONE ${p.letter}</div>
+            <div class="poly-name" style="display:flex;align-items:center;gap:6px">ZONE ${p.letter}<span class="zone-prop-count">${p.propCount||0}</span></div>
             <div class="poly-count">${p.countyName ? p.countyName+' County, '+p.stateAbbr : ''}</div>
           </div>
-          <span class="tip-wrap"><button class="poly-btn notes-btn" onclick="openZoneDescModal('${p.id}')">⚙</button><span class="tip-box tip-sidebar">Open pricing panel for Zone ${p.letter}</span></span>
+          <span class="tip-wrap"><span class="zone-prop-pill-tip" style="cursor:default"></span><span class="tip-box tip-sidebar">${p.propCount||0} propert${(p.propCount||0)===1?'y':'ies'} assigned to Zone ${p.letter}</span></span><span class="tip-wrap"><button class="poly-btn notes-btn" onclick="openZoneDescModal('${p.id}')">⚙</button><span class="tip-box tip-sidebar">Open pricing panel for Zone ${p.letter}</span></span>
           <span class="tip-wrap"><button class="poly-btn delete-btn">✕</button><span class="tip-box tip-sidebar">Delete Zone ${p.letter}</span></span>
         `;
         div.querySelector('.notes-btn').addEventListener('click', e => { e.stopPropagation(); openZoneDescModal(p.id); });
@@ -1479,6 +1519,27 @@ function renderPolygonList() {
         div.onclick = () => zoomToZoneAndCounty(p);
         polyDiv.appendChild(div);
       });
+
+      // Unassigned properties row — shown when properties loaded but some have no zone
+      const _unassignedCount = properties.filter(p => {
+        const pc = (p.county||'').toLowerCase().replace(' county','').trim();
+        const cc = countyName.toLowerCase().trim();
+        const sc = (p.state||'').toUpperCase();
+        return (pc === cc && sc === stateAbbr) && !p.zone;
+      }).length;
+      if (_unassignedCount > 0) {
+        const uDiv = document.createElement('div');
+        uDiv.className = 'polygon-item';
+        uDiv.style.cssText = 'opacity:0.75;border-style:dashed;cursor:default;';
+        uDiv.innerHTML = `
+          <div style="width:10px;height:10px;border-radius:50%;background:#a0aec0;flex-shrink:0;border:2px dashed #718096"></div>
+          <div class="poly-info">
+            <div class="poly-name" style="display:flex;align-items:center;gap:6px;color:#718096">UNASSIGNED<span class="zone-prop-count" style="background:#e8ebef;color:#718096">${_unassignedCount}</span></div>
+            <div class="poly-count">${countyName} County, ${stateAbbr}</div>
+          </div>
+        `;
+        polyDiv.appendChild(uDiv);
+      }
 
       cContent.appendChild(polyDiv);
       cGroup.appendChild(cHdr);
@@ -2116,7 +2177,7 @@ async function connectSheets() {
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'HTTP ' + r.status);
-    loadPropertiesFromFunction(data.properties, cn, data.scrubbedApns);
+    loadPropertiesFromFunction(data.properties, cn, data.scrubbedApns, data.ownerMap);
     const _sheetTitle = data.spreadsheetTitle || data.sheetTitle || sheetId;
 
     // 5.3 — County boundary validation
@@ -2194,7 +2255,7 @@ function _finishSheetConnect({ sa, cn, sheetConfig, sheetId, rawInput, sheetTitl
   const _assigned = properties.filter(p => p.zone).length;
   showToast('Connected: ' + cn + ' County — ' + properties.length + ' properties, ' + _assigned + ' assigned', 'success');
 }
-function loadPropertiesFromFunction(props, countyOverride, scrubbedApns) {
+function loadPropertiesFromFunction(props, countyOverride, scrubbedApns, ownerMap) {
   properties.forEach(p => { if (p.marker) p.marker.remove(); });
   properties = [];
   let skipped = 0;
@@ -2203,6 +2264,7 @@ function loadPropertiesFromFunction(props, countyOverride, scrubbedApns) {
   const apnWhitelist = (scrubbedApns && scrubbedApns.length)
     ? new Set(scrubbedApns.map(a => a.trim().toLowerCase()))
     : null;
+  const _ownerMap = ownerMap || {};
 
   props.forEach(prop => {
     let { lat, lng, apn, address, city, state, zip, county, acreage, zone, rowIndex } = prop;
@@ -2234,7 +2296,8 @@ function loadPropertiesFromFunction(props, countyOverride, scrubbedApns) {
     }
 
     // Store property data without map marker (pins disabled pending better implementation)
-    properties.push({ lat, lng, apn, address, city, state, zip, county, acreage, liAcreage: prop.liAcreage || '', parcelLink: prop.parcelLink || '', zone: zone || null, rowIndex, marker: null });
+    const ownerName = _ownerMap[apn ? apn.trim().toLowerCase() : ''] || '';
+    properties.push({ lat, lng, apn, address, city, state, zip, county, acreage, liAcreage: prop.liAcreage || '', parcelLink: prop.parcelLink || '', ownerName, zone: zone || null, rowIndex, marker: null });
   });
   document.getElementById('statProps').textContent = properties.length;
   if (skipped) showToast(`${skipped} properties skipped — coordinates out of range or not in scrubbed list`, 'info');
@@ -2875,7 +2938,7 @@ map.on('load', () => {
                 const _cnNorm = _cn.toLowerCase().trim();
                 const isCurrentCounty = _sa === _initState && _cnNorm === (_initCounty||'').toLowerCase().trim();
                 if (isCurrentCounty || !properties.length) {
-                  loadPropertiesFromFunction(data.properties, _cn, data.scrubbedApns);
+                  loadPropertiesFromFunction(data.properties, _cn, data.scrubbedApns, data.ownerMap);
                   document.getElementById('statProps').textContent = properties.length;
                   if (isCurrentCounty) {
                     sheetConfig = cfg;
