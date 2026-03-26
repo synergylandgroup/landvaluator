@@ -268,8 +268,8 @@ const HYBRID_IDX = 3;
 const map = new mapboxgl.Map({
   container: 'map',
   style: MAP_STYLES[HYBRID_IDX].id,
-  center: [-98.35, 39.5],
-  zoom: 4,
+  center: [-95.21117808929444, 38.70748954884343],
+  zoom: 4.575130398788689,
   projection: 'mercator',
   doubleClickZoom: false,
   boxZoom: false,
@@ -335,9 +335,11 @@ map.on('style.load', () => {
   _rebuildAllLabels();
 });
 
-// Re-evaluate clusters on zoom/pan
-map.on('zoomend', () => { if (polygons.length) { _refreshLabelMode(); } });
-map.on('moveend', () => { if (polygons.length) { _refreshLabelMode(); } });
+// Re-evaluate clusters on zoom/pan; debounced save of map position
+let _saveMapPosTid = null;
+const _debouncedSaveMapPos = () => { clearTimeout(_saveMapPosTid); _saveMapPosTid = setTimeout(saveAppState, 500); };
+map.on('zoomend', () => { if (polygons.length) { _refreshLabelMode(); } _debouncedSaveMapPos(); });
+map.on('moveend', () => { if (polygons.length) { _refreshLabelMode(); } _debouncedSaveMapPos(); });
 
 // =========================================================
 // DRAW LAYERS
@@ -2908,7 +2910,14 @@ function showToast(msg, type='info') {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 4500);
 }
 function saveAppState() {
-  DB.saveAppState({ state: stateSelect.value, county: document.getElementById('countySelect').value });
+  const _c = map.getCenter();
+  DB.saveAppState({
+    state: stateSelect.value,
+    county: document.getElementById('countySelect').value,
+    mapLng: _c.lng,
+    mapLat: _c.lat,
+    mapZoom: map.getZoom(),
+  });
 }
 function loadAppState() {
   return DB.loadAppState();
@@ -2974,6 +2983,11 @@ map.on('load', () => {
   const appState = loadAppState();
   const _initState  = _hasDeepLink ? _urlState  : (appState && appState.state);
   const _initCounty = _hasDeepLink ? _urlCounty : (appState && appState.county);
+
+  // Restore map position if saved and not overridden by a deep-link
+  if (!_hasDeepLink && appState && appState.mapLng !== undefined && appState.mapLat !== undefined && appState.mapZoom !== undefined) {
+    map.jumpTo({ center: [appState.mapLng, appState.mapLat], zoom: appState.mapZoom });
+  }
 
   if (_initState) {
     stateSelect.value = _initState;
