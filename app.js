@@ -94,28 +94,31 @@ const DB = {
 // =========================================================
 const _ftip = {
   _el: null,
-  show(text, triggerEl) {
+  show(text, triggerEl, align = 'center') {
     if (!this._el) this._el = document.getElementById('fixedTip');
     if (!this._el) return;
-    // Set text and temporarily make visible but transparent to measure
     this._el.textContent = text;
     this._el.style.visibility = 'hidden';
     this._el.style.opacity = '0';
     this._el.style.left = '0px';
     this._el.style.top = '0px';
     this._el.classList.add('show');
-    // Measure after browser lays out
     requestAnimationFrame(() => {
       const r = triggerEl.getBoundingClientRect();
       const tw = this._el.offsetWidth;
       const th = this._el.offsetHeight;
-      const left = Math.max(4, Math.min(r.left + r.width / 2 - tw / 2, window.innerWidth - tw - 4));
+      let left;
+      if (align === 'left') {
+        // Right-align tooltip to trigger (tooltip ends at trigger's right edge)
+        left = Math.max(4, r.right - tw);
+      } else {
+        left = Math.max(4, Math.min(r.left + r.width / 2 - tw / 2, window.innerWidth - tw - 4));
+      }
       const top = r.top - th - 10;
       const arrowLeft = Math.round((r.left + r.width / 2) - left);
       this._el.style.left = left + 'px';
       this._el.style.top = top + 'px';
       this._el.style.setProperty('--arrow-left', arrowLeft + 'px');
-      // Now reveal
       this._el.style.visibility = '';
       this._el.style.opacity = '';
     });
@@ -1437,7 +1440,7 @@ function renderPolygonList() {
     // Wire fixed tooltips — avoids overflow:hidden clipping in sidebar
     hdr.querySelector('.sg-name').addEventListener('mouseenter', e => _ftip.show('Zoom map into ' + fullName, e.currentTarget));
     hdr.querySelector('.sg-name').addEventListener('mouseleave', () => _ftip.hide());
-    hdr.querySelector('.sg-count').addEventListener('mouseenter', e => _ftip.show(_stateZoneTip, e.currentTarget));
+    hdr.querySelector('.sg-count').addEventListener('mouseenter', e => _ftip.show(_stateZoneTip, e.currentTarget, 'left'));
     hdr.querySelector('.sg-count').addEventListener('mouseleave', () => _ftip.hide());
     hdr.onclick = e => {
       if (e.target.closest('.state-arrow-zone')) {
@@ -1496,14 +1499,14 @@ function renderPolygonList() {
         const cc = countyName.toLowerCase().trim();
         return pc === cc && (p.state||'').toUpperCase() === stateAbbr;
       }).length;
-      const _cnZoneTip = _cnPropTotal + ' propert' + (_cnPropTotal === 1 ? 'y' : 'ies') + ' in ' + countyName + ' County';
+      const _cnZoneTip = _cnPropTotal + ' propert' + (_cnPropTotal === 1 ? 'y' : 'ies') + ' connected to ' + countyName + ' County';
       // Update county pill now that total is computed
       const _pillEl2 = cHdr.querySelector('.county-zone-pill');
       if (_pillEl2) _pillEl2.textContent = _cnPropTotal;
       const _cnNameEl = cHdr.querySelector('.county-name-text');
       const _cnPillEl = cHdr.querySelector('.county-zone-pill');
       if (_cnNameEl) { _cnNameEl.addEventListener('mouseenter', e => _ftip.show('Zoom map into ' + countyName + ' County', e.currentTarget)); _cnNameEl.addEventListener('mouseleave', () => _ftip.hide()); }
-      if (_cnPillEl) { _cnPillEl.addEventListener('mouseenter', e => _ftip.show(_cnZoneTip, e.currentTarget)); _cnPillEl.addEventListener('mouseleave', () => _ftip.hide()); }
+      if (_cnPillEl) { _cnPillEl.addEventListener('mouseenter', e => _ftip.show(_cnZoneTip, e.currentTarget, 'left')); _cnPillEl.addEventListener('mouseleave', () => _ftip.hide()); }
 
       const cContent = document.createElement('div');
       cContent.className = 'county-content' + (isCountyOpen ? '' : ' ac-collapsed');
