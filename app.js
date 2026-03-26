@@ -403,7 +403,8 @@ function _initPinLayer() {
       const zoneLabel = (p.zone && p.zone !== 'null') ? `Zone ${p.zone}` : 'Unassigned';
       const acreage   = p.acreage   ? `${p.acreage} ac`   : '—';
       const liAcreage = p.liAcreage ? `${p.liAcreage} ac` : '—';
-      const ownerRow  = p.ownerName ? `<div style="font-size:11px;color:#6b7d95;border-bottom:1px solid #eee;padding-bottom:3px;margin-bottom:3px;display:flex;justify-content:space-between"><span>Owner</span><span style="color:#1a2332;font-weight:500;max-width:130px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.ownerName}</span></div>` : '';
+      const ownerDisplay = p.ownerName ? (p.ownerName.length > 40 ? p.ownerName.slice(0, 40) + '…' : p.ownerName) : null;
+      const ownerRow  = ownerDisplay ? `<div style="font-size:11px;color:#6b7d95;border-bottom:1px solid #eee;padding-bottom:3px;margin-bottom:3px;display:flex;justify-content:space-between"><span>Owner</span><span style="color:#1a2332;font-weight:500;text-align:right;margin-left:8px">${ownerDisplay}</span></div>` : '';
       const linkHtml  = p.parcelLink
         ? `<a href="${p.parcelLink}" target="_blank" rel="noopener" style="display:block;margin-top:9px;text-align:center;font-size:11px;font-weight:700;color:#5b7fa6;background:#edf2f8;border-radius:6px;padding:5px 0;text-decoration:none;letter-spacing:0.03em;">View property page ↗</a>`
         : '';
@@ -1212,6 +1213,8 @@ async function saveAndSyncZone() {
           break;
         }
       }
+      // Write UNASSIGNED for properties with no zone
+      if (!prop.zone && prop.apn) assignments.push({ apn: prop.apn, zone: 'UNASSIGNED' });
     });
     document.getElementById('statAssigned').textContent = assigned;
     if (_pinsVisible) _rebuildPins();
@@ -1234,14 +1237,15 @@ async function saveAndSyncZone() {
       if (!zr.ok) throw new Error(zd.error || 'Zone write failed');
     }
 
-    // 4. Sync all pricing tiers
-    const countyPolys = polygons.filter(poly => (!poly.stateAbbr || (poly.stateAbbr === sa && poly.countyName === cn)) && !poly._isUnassigned);
+    // 4. Sync all pricing tiers (include Unassigned virtual polygon)
+    const countyPolys = polygons.filter(poly => !poly.stateAbbr || (poly.stateAbbr === sa && poly.countyName === cn));
     const allTiers = [];
     countyPolys.slice().sort((a,b) => (a.letter||'').localeCompare(b.letter||'')).forEach(poly => {
+      const zoneLabel = poly._isUnassigned ? 'UNASSIGNED' : poly.letter;
       (poly.pricingTiers || [])
         .filter(t => t.pricePerAcre !== '' && t.pricePerAcre !== undefined && t.pricePerAcre !== null)
         .sort((a,b) => parseFloat(a.minAcres||0) - parseFloat(b.minAcres||0))
-        .forEach(t => allTiers.push({ zone: poly.letter, minAcres: t.minAcres, maxAcres: t.maxAcres, pricePerAcre: t.pricePerAcre }));
+        .forEach(t => allTiers.push({ zone: zoneLabel, minAcres: t.minAcres, maxAcres: t.maxAcres, pricePerAcre: t.pricePerAcre }));
     });
 
     if (allTiers.length) {
@@ -1303,7 +1307,7 @@ async function syncAllPricingToSheet() {
     .slice() // don't mutate
     .sort((a, b) => (a.letter || '').localeCompare(b.letter || '')) // A→Z
     .forEach(poly => {
-      const zoneLabel = poly.allZones ? 'ALL' : poly.letter;
+      const zoneLabel = poly._isUnassigned ? 'UNASSIGNED' : (poly.allZones ? 'ALL' : poly.letter);
       (poly.pricingTiers || [])
         .filter(t => t.pricePerAcre !== '' && t.pricePerAcre !== undefined && t.pricePerAcre !== null)
         .sort((a, b) => parseFloat(a.minAcres || 0) - parseFloat(b.minAcres || 0)) // low→high acreage
@@ -2362,16 +2366,17 @@ async function runAssignment() {
   properties.forEach(prop => {
     prop.zone = null;
     for (const poly of polygons) {
+      if (poly._isUnassigned) continue;
       if (pointInPolygon(prop.lat, prop.lng, poly.points)) {
-        prop.zone = poly.letter; // write letter only (A, B, C...)
+        prop.zone = poly.letter;
         poly.propCount++;
-        // marker coloring disabled (pins not shown)
         assigned++;
         if (prop.apn) assignments.push({ apn: prop.apn, zone: poly.letter });
         break;
       }
     }
-    // if (!prop.zone) _markerColor(prop.marker, '#f7c948');
+    // Write UNASSIGNED for properties with no zone
+    if (!prop.zone && prop.apn) assignments.push({ apn: prop.apn, zone: 'UNASSIGNED' });
   });
 
   document.getElementById('statAssigned').textContent = assigned;
