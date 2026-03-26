@@ -2334,6 +2334,7 @@ function _finishSheetConnect({ sa, cn, sheetConfig, sheetId, rawInput, sheetTitl
 
   const _assigned = properties.filter(p => p.zone).length;
   showToast('Connected: ' + cn + ' County — ' + properties.length + ' properties, ' + _assigned + ' assigned', 'success');
+  closeSheetsModal();
 }
 function loadPropertiesFromFunction(props, countyOverride, scrubbedApns, ownerMap) {
   properties.forEach(p => { if (p.marker) p.marker.remove(); });
