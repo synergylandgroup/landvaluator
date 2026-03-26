@@ -1902,7 +1902,7 @@ async function clearAllZones() {
 // =========================================================
 function _polyToJSON(p) {
   return { id:p.id, name:p.name, letter:p.letter||'', stateAbbr:p.stateAbbr||'', countyName:p.countyName||'',
-           color:p.color, points:p.points, description:p.description||'', pricingTiers:p.pricingTiers||[], isRect:!!p._isRect, bounds:p._bounds||null };
+           color:p.color, points:p.points, description:p.description||'', pricingTiers:p.pricingTiers||[], isRect:!!p._isRect, bounds:p._bounds||null, propCount:p.propCount||0 };
 }
 function persistZones() {
   DB.saveZones(polygons.filter(p => !p._isUnassigned).map(_polyToJSON));
@@ -1947,7 +1947,7 @@ function restoreZones() {
 }
 function _loadZone(d, skipLayers) {
   const poly = { id:d.id, name:d.name, letter:d.letter||'', stateAbbr:d.stateAbbr||'', countyName:d.countyName||'',
-    color:d.color, points:d.points, description:d.description||'', pricingTiers:d.pricingTiers||[], labelMarker:null, handles:[], _isRect:d.isRect||false, _bounds:d.bounds||null };
+    color:d.color, points:d.points, description:d.description||'', pricingTiers:d.pricingTiers||[], labelMarker:null, handles:[], _isRect:d.isRect||false, _bounds:d.bounds||null, propCount:d.propCount||0 };
   // Back-compat: derive stateAbbr/countyName from name if missing
   if (!poly.stateAbbr || !poly.countyName) {
     const m = poly.name.match(/^(.+) County,\s*([A-Z]{2})$/);
