@@ -2997,7 +2997,21 @@ map.on('load', () => {
         loadCountyBoundaryOnly(_initState, _initCounty, true);
 
         // If deep-linked, zoom the map to the county
-        if (_hasDeepLink) { loadCounty(); }
+        if (_hasDeepLink) {
+          loadCounty();
+          // Collapse all states and counties except the deep-linked one
+          const _linkedStateKey   = 'state_open_'  + _initState;
+          const _linkedCountyKey  = 'county_open_' + _initState + '_' + _initCounty;
+          const _allStateCombos   = [...new Set(polygons.map(p => p.stateAbbr).filter(Boolean))];
+          _allStateCombos.forEach(sa => {
+            DB.saveUIState('state_open_' + sa, sa === _initState);
+            const _countiesInState = [...new Set(polygons.filter(p => p.stateAbbr === sa).map(p => p.countyName).filter(Boolean))];
+            _countiesInState.forEach(cn => {
+              DB.saveUIState('county_open_' + sa + '_' + cn, sa === _initState && cn === _initCounty);
+            });
+          });
+          renderPolygonList();
+        }
 
         // Reconnect ALL counties that have saved sheet configs
         const _allConfigs = Object.entries(sheetConfigs || {});
