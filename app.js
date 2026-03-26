@@ -1393,9 +1393,10 @@ function renderPolygonList() {
     return;
   }
 
-  // Group by stateAbbr → countyName
+  // Group by stateAbbr → countyName (exclude virtual unassigned entries)
   const byState = {};
   polygons.forEach(p => {
+    if (p._isUnassigned) return;
     const sa = p.stateAbbr || 'Unknown';
     const cn = p.countyName || 'Unknown';
     if (!byState[sa]) byState[sa] = {};
@@ -1475,13 +1476,11 @@ function renderPolygonList() {
         </div>
       `;
       // Wire fixed tooltips for county name and count badge
-      const _unassignedCountForTip = properties.filter(p => {
+      const _cnPropTotal = properties.filter(p => {
         const pc = (p.county||'').toLowerCase().replace(' county','').trim();
         const cc = countyName.toLowerCase().trim();
-        const sc = (p.state||'').toUpperCase();
-        return (pc === cc && sc === stateAbbr) && !p.zone;
+        return pc === cc && (p.state||'').toUpperCase() === stateAbbr;
       }).length;
-      const _cnPropTotal = cPolys.reduce((s,z) => s + (z.propCount||0), 0) + _unassignedCountForTip;
       const _cnZoneTip = _cnPropTotal + ' propert' + (_cnPropTotal === 1 ? 'y' : 'ies') + ' in ' + countyName + ' County';
       // Update county pill now that total is computed
       const _pillEl2 = cHdr.querySelector('.county-zone-pill');
