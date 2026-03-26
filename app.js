@@ -75,6 +75,16 @@ const DB = {
   loadUIState(key, fallback = null) {
     try { const r = localStorage.getItem('lv_ui_'+key); return r !== null ? JSON.parse(r) : fallback; } catch(e) { return fallback; }
   },
+
+  // -- Unassigned Zone Pricing -------------------------
+  saveUnassigned(entries) {
+    // entries: array of { id, stateAbbr, countyName, pricingTiers, description }
+    try { localStorage.setItem('lv_unassigned', JSON.stringify(entries)); } catch(e) {}
+  },
+
+  loadUnassigned() {
+    try { const r = localStorage.getItem('lv_unassigned'); return r ? JSON.parse(r) : []; } catch(e) { return []; }
+  },
 };
 
 // =========================================================
@@ -1169,7 +1179,7 @@ async function saveAndSyncZone() {
 
   if (!cfg || !cfg.sheetId) {
     closeZoneEditor();
-    showToast(`Zone ${p.letter} saved locally (no sheet connected)`, 'success');
+    showToast(p._isUnassigned ? 'Unassigned Zone saved locally' : `Zone ${p.letter} saved locally (no sheet connected)`, 'success');
     if (btn) { btn.disabled = false; btn.innerHTML = '💾 Save &amp; Sync'; }
     return;
   }
@@ -1194,7 +1204,7 @@ async function saveAndSyncZone() {
 
   // Now safe to close the modal — state/county captured above
   closeZoneEditor();
-  showToast(`Zone ${p.letter} saved — syncing...`, 'info');
+  showToast(p._isUnassigned ? 'Unassigned Zone saved — syncing...' : `Zone ${p.letter} saved — syncing...`, 'info');
 
   try {
     // 2. Run zone assignment — scoped to THIS county's polygons only (case-insensitive)
@@ -1240,7 +1250,8 @@ async function saveAndSyncZone() {
     // 4. Sync all pricing tiers (include Unassigned virtual polygon)
     const countyPolys = polygons.filter(poly => !poly.stateAbbr || (poly.stateAbbr === sa && poly.countyName === cn));
     const allTiers = [];
-    countyPolys.slice().sort((a,b) => (a.letter||'').localeCompare(b.letter||'')).forEach(poly => {
+    const _sortZone = p => p._isUnassigned ? 'ZZZZZ' : (p.letter || '');
+    countyPolys.slice().sort((a,b) => _sortZone(a).localeCompare(_sortZone(b))).forEach(poly => {
       const zoneLabel = poly._isUnassigned ? 'UNASSIGNED' : poly.letter;
       (poly.pricingTiers || [])
         .filter(t => t.pricePerAcre !== '' && t.pricePerAcre !== undefined && t.pricePerAcre !== null)
@@ -1258,7 +1269,7 @@ async function saveAndSyncZone() {
       if (!pd.success) throw new Error(pd.error || 'Pricing sync failed');
     }
 
-    showToast(`Zone ${p.letter} saved — ${assigned} assigned, pricing synced ✓`, 'success');
+    showToast(p._isUnassigned ? `Unassigned Zone saved — pricing synced ✓` : `Zone ${p.letter} saved — ${assigned} assigned, pricing synced ✓`, 'success');
   } catch(err) {
     showToast('Sync error: ' + err.message, 'error');
   }
@@ -1305,7 +1316,7 @@ async function syncAllPricingToSheet() {
   const allTiers = [];
   countyPolys
     .slice() // don't mutate
-    .sort((a, b) => (a.letter || '').localeCompare(b.letter || '')) // A→Z
+    .sort((a, b) => { const s = p => p._isUnassigned ? 'ZZZZZ' : (p.letter||''); return s(a).localeCompare(s(b)); }) // A→Z, UNASSIGNED last
     .forEach(poly => {
       const zoneLabel = poly._isUnassigned ? 'UNASSIGNED' : (poly.allZones ? 'ALL' : poly.letter);
       (poly.pricingTiers || [])
@@ -1910,6 +1921,11 @@ function _polyToJSON(p) {
 }
 function persistZones() {
   DB.saveZones(polygons.filter(p => !p._isUnassigned).map(_polyToJSON));
+  // Save unassigned virtual polygons separately
+  const unassignedEntries = polygons
+    .filter(p => p._isUnassigned)
+    .map(p => ({ id: p.id, stateAbbr: p.stateAbbr, countyName: p.countyName, pricingTiers: p.pricingTiers || [], description: p.description || '' }));
+  DB.saveUnassigned(unassignedEntries);
 }
 async function _loadAllCountyBoundaries(cacheOnly) {
   // Find all unique state+county combos that have zones
@@ -1948,6 +1964,28 @@ function restoreZones() {
     showToast(`Restored ${data.length} zone${data.length>1?'s':''}`, 'success');
     setTimeout(() => _loadAllCountyBoundaries(true), 500); // 1.2 — cache only on restore
   } catch(e) { console.error('restoreZones error:', e); }
+
+  // Restore unassigned virtual polygons (pricing data only, no map geometry)
+  try {
+    const unassigned = DB.loadUnassigned();
+    if (unassigned && unassigned.length) {
+      unassigned.forEach(u => {
+        const existing = polygons.find(p => p.id === u.id);
+        if (!existing) {
+          polygons.push({
+            id: u.id, letter: '?', name: 'Unassigned', color: '#a0aec0',
+            stateAbbr: u.stateAbbr, countyName: u.countyName,
+            points: [], propCount: 0, pricingTiers: u.pricingTiers || [],
+            description: u.description || '', _isUnassigned: true,
+            labelMarker: null, handles: [],
+          });
+        } else {
+          existing.pricingTiers = u.pricingTiers || [];
+          existing.description  = u.description  || '';
+        }
+      });
+    }
+  } catch(e) { console.error('restoreUnassigned error:', e); }
 }
 function _loadZone(d, skipLayers) {
   const poly = { id:d.id, name:d.name, letter:d.letter||'', stateAbbr:d.stateAbbr||'', countyName:d.countyName||'',
