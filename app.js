@@ -335,11 +335,9 @@ map.on('style.load', () => {
   _rebuildAllLabels();
 });
 
-// Re-evaluate clusters on zoom/pan; debounced save of map position
-let _saveMapPosTid = null;
-const _debouncedSaveMapPos = () => { clearTimeout(_saveMapPosTid); _saveMapPosTid = setTimeout(saveAppState, 500); };
-map.on('zoomend', () => { if (polygons.length) { _refreshLabelMode(); } _debouncedSaveMapPos(); });
-map.on('moveend', () => { if (polygons.length) { _refreshLabelMode(); } _debouncedSaveMapPos(); });
+// Re-evaluate clusters on zoom/pan
+map.on('zoomend', () => { if (polygons.length) { _refreshLabelMode(); } });
+map.on('moveend', () => { if (polygons.length) { _refreshLabelMode(); } });
 
 // =========================================================
 // DRAW LAYERS
@@ -2911,14 +2909,7 @@ function showToast(msg, type='info') {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 4500);
 }
 function saveAppState() {
-  const _c = map.getCenter();
-  DB.saveAppState({
-    state: stateSelect.value,
-    county: document.getElementById('countySelect').value,
-    mapLng: _c.lng,
-    mapLat: _c.lat,
-    mapZoom: map.getZoom(),
-  });
+  DB.saveAppState({ state: stateSelect.value, county: document.getElementById('countySelect').value });
 }
 function loadAppState() {
   return DB.loadAppState();
@@ -2984,11 +2975,6 @@ map.on('load', () => {
   const appState = loadAppState();
   const _initState  = _hasDeepLink ? _urlState  : (appState && appState.state);
   const _initCounty = _hasDeepLink ? _urlCounty : (appState && appState.county);
-
-  // Restore map position if saved and not overridden by a deep-link
-  if (!_hasDeepLink && appState && appState.mapLng !== undefined && appState.mapLat !== undefined && appState.mapZoom !== undefined) {
-    map.jumpTo({ center: [appState.mapLng, appState.mapLat], zoom: appState.mapZoom });
-  }
 
   if (_initState) {
     stateSelect.value = _initState;
