@@ -1985,10 +1985,13 @@ function restoreZones() {
     // Polygon layers appear only after user actively selects a county
     data.forEach(d => _loadZone(d, true));
     _rebuildAllLabels();
+    renderPolygonList(); // always render sidebar immediately after zone data is loaded
     showToast(`Restored ${data.length} zone${data.length>1?'s':''}`, 'success');
-    _restoreAllZoneLayers(); // draw zone fill/lines so _refreshLabelMode can toggle them
-    setTimeout(() => _loadAllCountyBoundaries(false), 500); // draw county boundaries, visibility controlled by zoom
   } catch(e) { console.error('restoreZones error:', e); }
+  // Draw zone fill/line layers and county boundaries outside try block
+  // so any map layer errors don't silently abort zone data restoration
+  try { _restoreAllZoneLayers(); } catch(e) { console.warn('restoreZoneLayers error:', e); }
+  setTimeout(() => { try { _loadAllCountyBoundaries(false); } catch(e) { console.warn('loadAllCountyBoundaries error:', e); } }, 500);
 
   // Restore unassigned virtual polygons (pricing data only, no map geometry)
   try {
@@ -3014,7 +3017,12 @@ map.on('load', () => {
         // Restore active sheet config for currently selected county
         const saved = _getSheetConfig(_initState, _initCounty);
         if (saved) { sheetConfig = saved; setConnected(true); }
-        renderPolygonList();
+      }
+
+      // Always render zone list on restore so sidebar shows saved zones regardless of county selection
+      renderPolygonList();
+
+      if (_initCounty) {
 
         // Ensure boundary enforcement is active for restored county (1.2 — cache only, no visual layer)
         loadCountyBoundaryOnly(_initState, _initCounty, true);
