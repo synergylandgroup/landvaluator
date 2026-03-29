@@ -1,3 +1,150 @@
+// =========================================================
+// SUPABASE CLIENT
+// =========================================================
+const SUPABASE_URL  = 'https://dcrxczsgcuiwimwpokxo.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjcnhjenNnY3Vpd2ltd3Bva3hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NDU4MDAsImV4cCI6MjA5MDMyMTgwMH0.BFNKnN5mzaGLazQQTNhl8TytA5JW5IQxa5ouFg4-KB4';
+const _supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let _currentUser = null;
+
+// =========================================================
+// AUTH FUNCTIONS
+// =========================================================
+function _authSwitchTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('authTabLogin').classList.toggle('active', isLogin);
+  document.getElementById('authTabSignup').classList.toggle('active', !isLogin);
+  document.getElementById('authFormLogin').style.display = isLogin ? '' : 'none';
+  document.getElementById('authFormSignup').style.display = isLogin ? 'none' : '';
+  document.getElementById('authError').textContent = '';
+}
+
+async function _authLogin() {
+  const email = document.getElementById('authLoginEmail').value.trim();
+  const password = document.getElementById('authLoginPassword').value;
+  const btn = document.getElementById('authLoginBtn');
+  const err = document.getElementById('authError');
+  if (!email || !password) { err.textContent = 'Please enter your email and password.'; return; }
+  btn.disabled = true; btn.textContent = 'Signing in...'; err.textContent = '';
+  const { error } = await _supa.auth.signInWithPassword({ email, password });
+  if (error) { err.textContent = error.message; btn.disabled = false; btn.textContent = 'Sign In'; }
+}
+
+async function _authSignup() {
+  const email = document.getElementById('authSignupEmail').value.trim();
+  const password = document.getElementById('authSignupPassword').value;
+  const confirm = document.getElementById('authSignupConfirm').value;
+  const btn = document.getElementById('authSignupBtn');
+  const err = document.getElementById('authError');
+  if (!email || !password) { err.textContent = 'Please fill in all fields.'; return; }
+  if (password.length < 8) { err.textContent = 'Password must be at least 8 characters.'; return; }
+  if (password !== confirm) { err.textContent = 'Passwords do not match.'; return; }
+  btn.disabled = true; btn.textContent = 'Creating account...'; err.textContent = '';
+  const { error } = await _supa.auth.signUp({ email, password });
+  if (error) { err.textContent = error.message; btn.disabled = false; btn.textContent = 'Create Account'; }
+  else { err.style.color = 'var(--green)'; err.textContent = 'Account created! You are now signed in.'; }
+}
+
+async function _authSignOut() {
+  _toggleUserMenu();
+  await _supa.auth.signOut();
+}
+
+function _authShowReset() {
+  document.getElementById('authModal').classList.remove('open');
+  document.getElementById('resetModal').classList.add('open');
+  document.getElementById('resetError').textContent = '';
+  document.getElementById('resetEmail').value = document.getElementById('authLoginEmail').value || '';
+}
+
+async function _authSendReset() {
+  const email = document.getElementById('resetEmail').value.trim();
+  const btn = document.getElementById('resetBtn');
+  const err = document.getElementById('resetError');
+  if (!email) { err.textContent = 'Please enter your email.'; return; }
+  btn.disabled = true; btn.textContent = 'Sending...'; err.textContent = '';
+  const { error } = await _supa.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://landvaluator.app',
+  });
+  if (error) { err.textContent = error.message; btn.disabled = false; btn.textContent = 'Send Reset Link'; }
+  else {
+    err.style.color = 'var(--green)';
+    err.textContent = 'Check your email for a reset link.';
+    btn.disabled = false; btn.textContent = 'Send Reset Link';
+  }
+}
+
+function _toggleUserMenu() {
+  document.getElementById('userDropdown').classList.toggle('open');
+}
+
+function _updateUserUI(user) {
+  const wrap = document.getElementById('userMenuWrap');
+  const avatar = document.getElementById('userAvatar');
+  const label = document.getElementById('userMenuLabel');
+  const emailEl = document.getElementById('userDropdownEmail');
+  if (user) {
+    const initial = (user.email || '?')[0].toUpperCase();
+    avatar.textContent = initial;
+    label.textContent = user.email.split('@')[0];
+    emailEl.textContent = user.email;
+    wrap.style.display = '';
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+// Close user menu on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.user-menu-wrap')) {
+    document.getElementById('userDropdown')?.classList.remove('open');
+  }
+});
+
+// Enter key support for auth forms
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const authModal = document.getElementById('authModal');
+  if (!authModal?.classList.contains('open')) return;
+  const loginVisible = document.getElementById('authFormLogin')?.style.display !== 'none';
+  if (loginVisible) _authLogin();
+  else _authSignup();
+});
+
+// =========================================================
+// AUTH STATE LISTENER — central hub for login/logout
+// =========================================================
+_supa.auth.onAuthStateChange(async (event, session) => {
+  _currentUser = session?.user || null;
+  _updateUserUI(_currentUser);
+
+  if (_currentUser) {
+    // User just logged in — hide auth modal, show app
+    document.getElementById('authModal').classList.remove('open');
+    document.getElementById('authError').textContent = '';
+    // If app not yet initialized, trigger init
+    if (!_authAppReady) {
+      _authAppReady = true;
+      // Map may already be loaded — if so run init now, else wait for map.on('load')
+      if (_mapLoadFired) _initAppAfterAuth();
+    }
+  } else {
+    // User logged out — show auth modal, hide user menu
+    document.getElementById('authModal').classList.add('open');
+    // Clear app state
+    polygons.forEach(p => { _removeZoneLabel(p); _removeZoneLayers(p.id); });
+    polygons = [];
+    properties = [];
+    sheetConfigs = {};
+    sheetConfig = {};
+    renderPolygonList();
+    document.getElementById('statProps').textContent = '0';
+    document.getElementById('statAssigned').textContent = '0';
+  }
+});
+
+let _authAppReady = false;
+let _mapLoadFired = false;
+
 
 // =========================================================
 // STORAGE ADAPTER
@@ -20,70 +167,94 @@
 
 const DB = {
   // -- Zones ------------------------------------------
-  saveZones(zones) {
-    // SUPABASE: await supabase.from('zones').upsert({ user_id, data: zones })
-    try { localStorage.setItem('lv_zones', JSON.stringify(zones)); } catch(e) {}
+  async saveZones(zones) {
+    if (!_currentUser) return;
+    try {
+      await _supa.from('zones').upsert({ user_id: _currentUser.id, data: zones, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    } catch(e) { console.warn('DB.saveZones error:', e); }
   },
 
-  loadZones() {
-    // SUPABASE: const { data } = await supabase.from('zones').select('data').eq('user_id', user_id).single()
-    try { const r = localStorage.getItem('lv_zones'); return r ? JSON.parse(r) : null; } catch(e) { return null; }
+  async loadZones() {
+    if (!_currentUser) return null;
+    try {
+      const { data } = await _supa.from('zones').select('data').eq('user_id', _currentUser.id).single();
+      return data?.data || null;
+    } catch(e) { return null; }
   },
 
   // -- Sheet Configs -----------------------------------
-  saveSheetConfigs(configs) {
-    // SUPABASE: await supabase.from('sheet_configs').upsert({ user_id, configs })
-    try { localStorage.setItem('lv_sheet_configs', JSON.stringify(configs)); } catch(e) {}
+  async saveSheetConfigs(configs) {
+    if (!_currentUser) return;
+    try {
+      await _supa.from('sheet_configs').upsert({ user_id: _currentUser.id, configs, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    } catch(e) { console.warn('DB.saveSheetConfigs error:', e); }
   },
 
-  loadSheetConfigs() {
-    // SUPABASE: const { data } = await supabase.from('sheet_configs').select('configs').eq('user_id', user_id).single()
-    try { const r = localStorage.getItem('lv_sheet_configs'); return r ? JSON.parse(r) : null; } catch(e) { return null; }
+  async loadSheetConfigs() {
+    if (!_currentUser) return null;
+    try {
+      const { data } = await _supa.from('sheet_configs').select('configs').eq('user_id', _currentUser.id).single();
+      return data?.configs || null;
+    } catch(e) { return null; }
   },
 
   // -- App State ---------------------------------------
-  saveAppState(state) {
-    // SUPABASE: await supabase.from('app_state').upsert({ user_id, ...state })
-    try { localStorage.setItem('lv_app_state', JSON.stringify(state)); } catch(e) {}
+  async saveAppState(state) {
+    if (!_currentUser) return;
+    try {
+      await _supa.from('app_state').upsert({ user_id: _currentUser.id, state: state.state || '', county: state.county || '', updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    } catch(e) { console.warn('DB.saveAppState error:', e); }
   },
 
-  loadAppState() {
-    // SUPABASE: const { data } = await supabase.from('app_state').select('*').eq('user_id', user_id).single()
-    try { const r = localStorage.getItem('lv_app_state'); return r ? JSON.parse(r) : null; } catch(e) { return null; }
+  async loadAppState() {
+    if (!_currentUser) return null;
+    try {
+      const { data } = await _supa.from('app_state').select('state,county').eq('user_id', _currentUser.id).single();
+      return data ? { state: data.state, county: data.county } : null;
+    } catch(e) { return null; }
   },
 
-  // -- County List Cache -------------------------------
-  // (keep in localStorage even after Supabase migration — this is just a UI cache)
+  // -- County List Cache (stays in localStorage — pure UI cache) ──
   saveCountyCache(abbr, counties) {
     try { localStorage.setItem('counties_'+abbr, JSON.stringify({counties, abbr, ts: Date.now()})); } catch(e) {}
   },
-
   loadCountyCache(abbr) {
     try { const s = localStorage.getItem('counties_'+abbr); return s ? JSON.parse(s) : null; } catch(e) { return null; }
   },
-
   clearCountyCache(abbr) {
     try { localStorage.removeItem('counties_'+abbr); } catch(e) {}
   },
 
   // -- UI State (collapse/expand) ----------------------
-  // SUPABASE: await supabase.from('ui_state').upsert({ user_id, key, value })
-  saveUIState(key, value) {
-    try { localStorage.setItem('lv_ui_'+key, JSON.stringify(value)); } catch(e) {}
+  async saveUIState(key, value) {
+    if (!_currentUser) return;
+    try {
+      await _supa.from('ui_state').upsert({ user_id: _currentUser.id, key, value, updated_at: new Date().toISOString() }, { onConflict: 'user_id,key' });
+    } catch(e) { console.warn('DB.saveUIState error:', e); }
   },
 
-  loadUIState(key, fallback = null) {
-    try { const r = localStorage.getItem('lv_ui_'+key); return r !== null ? JSON.parse(r) : fallback; } catch(e) { return fallback; }
+  async loadUIState(key, fallback = null) {
+    if (!_currentUser) return fallback;
+    try {
+      const { data } = await _supa.from('ui_state').select('value').eq('user_id', _currentUser.id).eq('key', key).single();
+      return data !== null ? data.value : fallback;
+    } catch(e) { return fallback; }
   },
 
   // -- Unassigned Zone Pricing -------------------------
-  saveUnassigned(entries) {
-    // entries: array of { id, stateAbbr, countyName, pricingTiers, description }
-    try { localStorage.setItem('lv_unassigned', JSON.stringify(entries)); } catch(e) {}
+  async saveUnassigned(entries) {
+    if (!_currentUser) return;
+    try {
+      await _supa.from('unassigned_zones').upsert({ user_id: _currentUser.id, data: entries, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    } catch(e) { console.warn('DB.saveUnassigned error:', e); }
   },
 
-  loadUnassigned() {
-    try { const r = localStorage.getItem('lv_unassigned'); return r ? JSON.parse(r) : []; } catch(e) { return []; }
+  async loadUnassigned() {
+    if (!_currentUser) return [];
+    try {
+      const { data } = await _supa.from('unassigned_zones').select('data').eq('user_id', _currentUser.id).single();
+      return data?.data || [];
+    } catch(e) { return []; }
   },
 };
 
@@ -1870,13 +2041,13 @@ function _polyToJSON(p) {
   return { id:p.id, name:p.name, letter:p.letter||'', stateAbbr:p.stateAbbr||'', countyName:p.countyName||'',
            color:p.color, points:p.points, description:p.description||'', pricingTiers:p.pricingTiers||[], isRect:!!p._isRect, bounds:p._bounds||null, propCount:p.propCount||0 };
 }
-function persistZones() {
-  DB.saveZones(polygons.filter(p => !p._isUnassigned).map(_polyToJSON));
+async function persistZones() {
+  await DB.saveZones(polygons.filter(p => !p._isUnassigned).map(_polyToJSON));
   // Save unassigned virtual polygons separately
   const unassignedEntries = polygons
     .filter(p => p._isUnassigned)
     .map(p => ({ id: p.id, stateAbbr: p.stateAbbr, countyName: p.countyName, pricingTiers: p.pricingTiers || [], description: p.description || '' }));
-  DB.saveUnassigned(unassignedEntries);
+  await DB.saveUnassigned(unassignedEntries);
 }
 async function _loadAllCountyBoundaries(cacheOnly) {
   // Find all unique state+county combos that have zones
@@ -1904,9 +2075,9 @@ async function _loadAllCountyBoundaries(cacheOnly) {
   if (polygons.length) _rebuildAllLabels();
 }
 
-function restoreZones() {
+async function restoreZones() {
   try {
-    const data = DB.loadZones();
+    const data = await DB.loadZones();
     if (!data || !Array.isArray(data) || !data.length) return;
     // 1.2 — skipLayers=true: restore zone data + labels but don't draw polygon fills/outlines
     // Polygon layers appear only after user actively selects a county
@@ -1922,7 +2093,7 @@ function restoreZones() {
 
   // Restore unassigned virtual polygons (pricing data only, no map geometry)
   try {
-    const unassigned = DB.loadUnassigned();
+    const unassigned = await DB.loadUnassigned();
     if (unassigned && unassigned.length) {
       unassigned.forEach(u => {
         const existing = polygons.find(p => p.id === u.id);
@@ -2734,10 +2905,10 @@ function showToast(msg, type='info') {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 4500);
 }
 function saveAppState() {
-  DB.saveAppState({ state: stateSelect.value, county: document.getElementById('countySelect').value });
+  DB.saveAppState({ state: stateSelect.value, county: document.getElementById('countySelect').value }); // fire-and-forget async
 }
 function loadAppState() {
-  return DB.loadAppState();
+  return DB.loadAppState(); // returns Promise
 }
 
 // ── TOOLTIP TOGGLE ──────────────────────────────────────
@@ -2764,30 +2935,94 @@ document.getElementById('sheetsModal').addEventListener('click', e => { if (e.ta
 map.on('load', () => {
   _initDrawLayers();
   _initPinLayer();
+  _initTooltipToggle();
+  _mapLoadFired = true;
 
-  _initTooltipToggle(); // sets body class and updates button label
+  // If user is already logged in (session restored), run app init now
+  // Otherwise wait for onAuthStateChange to fire with a valid session
+  if (_currentUser) {
+    _authAppReady = true;
+    _initAppAfterAuth();
+  } else {
+    // Show auth modal while we wait
+    document.getElementById('authModal').classList.add('open');
+    // Safety net timer still needed for _mapInitComplete
+    setTimeout(() => { _mapInitComplete = true; }, 600);
+  }
 
-  // Load sheet configs first so they're available during zone restore
-  const _savedCfgs = DB.loadSheetConfigs();
-  if (_savedCfgs) { sheetConfigs = _savedCfgs; }
+});
 
-  // Restore zones from localStorage
-  const fromURL = loadZonesFromURL();
-  if (!fromURL) restoreZones();
+// =========================================================
+// LOCALSTORAGE → SUPABASE MIGRATION
+// On first login, check if localStorage has existing data
+// and offer to migrate it to the user's Supabase account
+// =========================================================
+async function _checkAndMigrateLocalData() {
+  try {
+    const lsZones = localStorage.getItem('lv_zones');
+    const lsConfigs = localStorage.getItem('lv_sheet_configs');
+    const lsAppState = localStorage.getItem('lv_app_state');
+    const lsUnassigned = localStorage.getItem('lv_unassigned');
 
+    // Check if there's anything worth migrating
+    const hasZones = lsZones && JSON.parse(lsZones).length > 0;
+    if (!hasZones) return; // nothing to migrate
+
+    // Check if Supabase already has data for this user
+    const { data: existingZones } = await _supa.from('zones').select('data').eq('user_id', _currentUser.id).single();
+    const alreadyHasData = existingZones?.data && existingZones.data.length > 0;
+    if (alreadyHasData) return; // already migrated, skip
+
+    // Prompt user
+    const confirmed = await _showConfirm({
+      title: 'Migrate Your Saved Zones?',
+      sub: `We found ${JSON.parse(lsZones).length} zone(s) saved locally on this device. Would you like to import them into your account so they're available everywhere?`,
+      okLabel: 'Import Zones',
+    });
+    if (!confirmed) return;
+
+    // Migrate all data
+    if (lsZones)      await DB.saveZones(JSON.parse(lsZones));
+    if (lsConfigs)    await DB.saveSheetConfigs(JSON.parse(lsConfigs));
+    if (lsAppState)   await DB.saveAppState(JSON.parse(lsAppState));
+    if (lsUnassigned) await DB.saveUnassigned(JSON.parse(lsUnassigned));
+
+    // Clear localStorage now that data is in Supabase
+    ['lv_zones','lv_sheet_configs','lv_app_state','lv_unassigned'].forEach(k => localStorage.removeItem(k));
+
+    showToast('Zones migrated to your account ✓', 'success');
+  } catch(e) {
+    console.warn('Migration check error:', e);
+  }
+}
+
+// =========================================================
+// APP INIT — runs after auth confirmed
+// =========================================================
+async function _initAppAfterAuth() {
   // Safety net: rebuild labels/boundaries after map is fully ready
   setTimeout(() => {
-    if (polygons.length) { _rebuildAllLabels(); _loadAllCountyBoundaries(true); } // 1.2 — cache only on init
-    _mapInitComplete = true; // 1.2 — mark init done; style.load may now redraw county layers on style switch
+    if (polygons.length) { _rebuildAllLabels(); _loadAllCountyBoundaries(true); }
+    _mapInitComplete = true;
   }, 600);
 
-  // Check for ?state=XX&county=Name deep-link params (e.g. from "Open in LandValuator" button)
+  // Check for localStorage data to migrate on first login
+  await _checkAndMigrateLocalData();
+
+  // Load sheet configs first
+  const _savedCfgs = await DB.loadSheetConfigs();
+  if (_savedCfgs) { sheetConfigs = _savedCfgs; }
+
+  // Restore zones or load from URL
+  const fromURL = loadZonesFromURL();
+  if (!fromURL) await restoreZones();
+
+  // Check for ?state=XX&county=Name deep-link params
   const _urlParams   = new URLSearchParams(window.location.search);
   const _urlState    = (_urlParams.get('state')  || '').trim().toUpperCase();
   const _urlCounty   = (_urlParams.get('county') || '').trim();
   const _hasDeepLink = !!(_urlState && _urlCounty);
 
-  // Strip ?state and ?county from the address bar immediately so a page refresh returns to default view
   if (_hasDeepLink) {
     _urlParams.delete('state');
     _urlParams.delete('county');
@@ -2795,9 +3030,7 @@ map.on('load', () => {
     history.replaceState(null, '', window.location.pathname + (_cleanSearch ? '?' + _cleanSearch : ''));
   }
 
-  // Restore state/county dropdowns and reconnect sheet
-  // Deep-link params override persisted state if present
-  const appState = loadAppState();
+  const appState = await DB.loadAppState();
   const _initState  = _hasDeepLink ? _urlState  : (appState && appState.state);
   const _initCounty = _hasDeepLink ? _urlCounty : (appState && appState.county);
 
@@ -2809,27 +3042,18 @@ map.on('load', () => {
       if (_initCounty) {
         countySelect.value = _initCounty;
         _syncCountyTrigger(_initCounty);
-
-        // Restore active sheet config for currently selected county
         const saved = _getSheetConfig(_initState, _initCounty);
         if (saved) { sheetConfig = saved; setConnected(true); }
       }
 
-      // Always render zone list on restore so sidebar shows saved zones regardless of county selection
       renderPolygonList();
 
       if (_initCounty) {
-
-        // Ensure boundary enforcement is active for restored county (1.2 — cache only, no visual layer)
         loadCountyBoundaryOnly(_initState, _initCounty, true);
 
-        // If deep-linked, zoom the map to the county
         if (_hasDeepLink) {
           loadCounty();
-          // Collapse all states and counties except the deep-linked one
-          const _linkedStateKey   = 'state_open_'  + _initState;
-          const _linkedCountyKey  = 'county_open_' + _initState + '_' + _initCounty;
-          const _allStateCombos   = [...new Set(polygons.map(p => p.stateAbbr).filter(Boolean))];
+          const _allStateCombos = [...new Set(polygons.map(p => p.stateAbbr).filter(Boolean))];
           _allStateCombos.forEach(sa => {
             DB.saveUIState('state_open_' + sa, sa === _initState);
             const _countiesInState = [...new Set(polygons.filter(p => p.stateAbbr === sa).map(p => p.countyName).filter(Boolean))];
@@ -2840,7 +3064,6 @@ map.on('load', () => {
           renderPolygonList();
         }
 
-        // Reconnect ALL counties that have saved sheet configs
         const _allConfigs = Object.entries(sheetConfigs || {});
         if (_allConfigs.length) {
           showToast('Reconnecting sheets...', 'info');
@@ -2857,24 +3080,16 @@ map.on('load', () => {
                 });
                 const data = await r.json();
                 if (!data.properties || !data.properties.length) continue;
-
-                // Load props for this county (don't overwrite if already loaded for current county)
                 const _cnNorm = _cn.toLowerCase().trim();
                 const isCurrentCounty = _sa === _initState && _cnNorm === (_initCounty||'').toLowerCase().trim();
                 if (isCurrentCounty || !properties.length) {
                   loadPropertiesFromFunction(data.properties, _cn, data.scrubbedApns, data.ownerMap);
                   document.getElementById('statProps').textContent = properties.length;
-                  if (isCurrentCounty) {
-                    sheetConfig = cfg;
-                    setConnected(true);
-                  }
+                  if (isCurrentCounty) { sheetConfig = cfg; setConnected(true); }
                 }
-
-                // Assign to this county's zones
                 const _doAssign = () => {
                   const _rPolys = polygons.filter(p => p.stateAbbr === _sa && (p.countyName||'').toLowerCase().trim() === _cnNorm);
                   if (!_rPolys.length) return;
-                  // Only assign props that belong to this county
                   const _cnProps = properties.filter(p => {
                     if (!p.county) return isCurrentCounty;
                     return p.county.toLowerCase().replace(' county','').trim() === _cnNorm;
@@ -2883,11 +3098,7 @@ map.on('load', () => {
                   _cnProps.forEach(prop => {
                     prop.zone = null;
                     for (const poly of _rPolys) {
-                      if (pointInPolygon(prop.lat, prop.lng, poly.points)) {
-                        prop.zone = poly.letter;
-                        assigned++;
-                        break;
-                      }
+                      if (pointInPolygon(prop.lat, prop.lng, poly.points)) { prop.zone = poly.letter; assigned++; break; }
                     }
                   });
                   _reconnected += assigned;
@@ -2896,8 +3107,7 @@ map.on('load', () => {
                   renderPolygonList();
                   persistZones();
                 };
-                if (polygons.length) { _doAssign(); }
-                else { map.once('idle', _doAssign); }
+                if (polygons.length) { _doAssign(); } else { map.once('idle', _doAssign); }
               } catch(e) { console.warn('Reconnect failed for', key, e); }
             }
             if (_reconnected > 0) showToast(`Sheets reconnected — ${_reconnected} properties assigned`, 'success');
@@ -2908,8 +3118,7 @@ map.on('load', () => {
       }
     });
   } else if (polygons.length) {
-    // Zones exist but no saved app state — still render the list
     renderPolygonList();
   }
-});
+}
 
