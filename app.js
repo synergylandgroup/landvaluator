@@ -168,6 +168,10 @@ let _mapLoadFired = false;
 // Example Supabase swap for DB_saveZones:
 //   const { error } = await supabase.from('zones').// =========================================================
 
+// In-memory UI state cache — loaded from Supabase after login
+// Allows renderPolygonList() to read UI state synchronously
+const _uiStateCache = {};
+
 const DB = {
   // -- Zones ------------------------------------------
   async saveZones(zones) {
@@ -229,19 +233,28 @@ const DB = {
   },
 
   // -- UI State (collapse/expand) ----------------------
-  async saveUIState(key, value) {
+  // saveUIState: writes to in-memory cache immediately, syncs to Supabase in background
+  saveUIState(key, value) {
+    _uiStateCache[key] = value; // instant synchronous update
     if (!_currentUser) return;
-    try {
-      await _supa.from('ui_state').upsert({ user_id: _currentUser.id, key, value, updated_at: new Date().toISOString() }, { onConflict: 'user_id,key' });
-    } catch(e) { console.warn('DB.saveUIState error:', e); }
+    // fire-and-forget to Supabase
+    _supa.from('ui_state').upsert({ user_id: _currentUser.id, key, value, updated_at: new Date().toISOString() }, { onConflict: 'user_id,key' })
+      .then(() => {}).catch(e => console.warn('DB.saveUIState error:', e));
   },
 
-  async loadUIState(key, fallback = null) {
-    if (!_currentUser) return fallback;
+  // loadUIState: reads from in-memory cache synchronously (populated after login)
+  loadUIState(key, fallback = null) {
+    return key in _uiStateCache ? _uiStateCache[key] : fallback;
+  },
+
+  // loadAllUIState: fetches all UI state from Supabase and populates cache
+  // Called once after login in _initAppAfterAuth
+  async loadAllUIState() {
+    if (!_currentUser) return;
     try {
-      const { data } = await _supa.from('ui_state').select('value').eq('user_id', _currentUser.id).eq('key', key).maybeSingle();
-      return data !== null ? data.value : fallback;
-    } catch(e) { return fallback; }
+      const { data } = await _supa.from('ui_state').select('key,value').eq('user_id', _currentUser.id);
+      if (data) data.forEach(row => { _uiStateCache[row.key] = row.value; });
+    } catch(e) { console.warn('DB.loadAllUIState error:', e); }
   },
 
   // -- Unassigned Zone Pricing -------------------------
@@ -2924,8 +2937,8 @@ function _updateTooltipBtn(isOff) {
   const btn = document.getElementById('tooltipToggleBtn');
   if (btn) btn.classList.toggle('active', !isOff);
 }
-async function _initTooltipToggle() {
-  const isOff = await DB.loadUIState('tooltips_off', false);
+function _initTooltipToggle() {
+  const isOff = DB.loadUIState('tooltips_off', false);
   if (isOff) document.body.classList.add('tooltips-off');
   _updateTooltipBtn(isOff);
 }
@@ -3002,8 +3015,12 @@ async function _checkAndMigrateLocalData() {
 // APP INIT — runs after auth confirmed
 // =========================================================
 async function _initAppAfterAuth() {
+  // Load ALL UI state from Supabase into memory cache first
+  // This allows renderPolygonList() to read accordion state synchronously
+  await DB.loadAllUIState();
+
   // Init tooltip state (must be after auth so DB.loadUIState has a user)
-  await _initTooltipToggle();
+  _initTooltipToggle();
 
   // Check for localStorage data to migrate on first login
   await _checkAndMigrateLocalData();
