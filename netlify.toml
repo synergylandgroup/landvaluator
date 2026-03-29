@@ -7,3 +7,8 @@
 
 [build.processing]
   skip_processing = true
+
+[[redirects]]
+  from = "/auth/callback"
+  to = "/.netlify/functions/auth-callback"
+  status = 200
