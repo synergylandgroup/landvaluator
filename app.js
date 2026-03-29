@@ -12,7 +12,15 @@ let _passwordRecoveryMode = false;
 // The callback sets ?type=recovery as a clean query param we fully control
 if (new URLSearchParams(window.location.search).get('type') === 'recovery') {
   _passwordRecoveryMode = true;
-  // Clean the URL immediately
+  // Extract tokens from hash and set session explicitly so updateUser works
+  const _hashParams = new URLSearchParams(window.location.hash.slice(1));
+  const _accessToken  = _hashParams.get('access_token');
+  const _refreshToken = _hashParams.get('refresh_token');
+  if (_accessToken && _refreshToken) {
+    _supa.auth.setSession({ access_token: _accessToken, refresh_token: _refreshToken })
+      .catch(e => console.warn('setSession error:', e));
+  }
+  // Clean the URL
   history.replaceState(null, '', window.location.pathname);
 }
 
