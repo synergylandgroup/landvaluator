@@ -162,8 +162,7 @@ let _mapLoadFired = false;
 //   app_state    (id, user_id, state_abbr, county_name)
 //
 // Example Supabase swap for DB_saveZones:
-//   const { error } = await supabase.from('zones').upsert({ user_id: currentUser.id, data: zones });
-// =========================================================
+//   const { error } = await supabase.from('zones').// =========================================================
 
 const DB = {
   // -- Zones ------------------------------------------
@@ -177,7 +176,7 @@ const DB = {
   async loadZones() {
     if (!_currentUser) return null;
     try {
-      const { data } = await _supa.from('zones').select('data').eq('user_id', _currentUser.id).single();
+      const { data } = await _supa.from('zones').select('data').eq('user_id', _currentUser.id).maybeSingle();
       return data?.data || null;
     } catch(e) { return null; }
   },
@@ -193,7 +192,7 @@ const DB = {
   async loadSheetConfigs() {
     if (!_currentUser) return null;
     try {
-      const { data } = await _supa.from('sheet_configs').select('configs').eq('user_id', _currentUser.id).single();
+      const { data } = await _supa.from('sheet_configs').select('configs').eq('user_id', _currentUser.id).maybeSingle();
       return data?.configs || null;
     } catch(e) { return null; }
   },
@@ -209,7 +208,7 @@ const DB = {
   async loadAppState() {
     if (!_currentUser) return null;
     try {
-      const { data } = await _supa.from('app_state').select('state,county').eq('user_id', _currentUser.id).single();
+      const { data } = await _supa.from('app_state').select('state,county').eq('user_id', _currentUser.id).maybeSingle();
       return data ? { state: data.state, county: data.county } : null;
     } catch(e) { return null; }
   },
@@ -236,7 +235,7 @@ const DB = {
   async loadUIState(key, fallback = null) {
     if (!_currentUser) return fallback;
     try {
-      const { data } = await _supa.from('ui_state').select('value').eq('user_id', _currentUser.id).eq('key', key).single();
+      const { data } = await _supa.from('ui_state').select('value').eq('user_id', _currentUser.id).eq('key', key).maybeSingle();
       return data !== null ? data.value : fallback;
     } catch(e) { return fallback; }
   },
@@ -252,7 +251,7 @@ const DB = {
   async loadUnassigned() {
     if (!_currentUser) return [];
     try {
-      const { data } = await _supa.from('unassigned_zones').select('data').eq('user_id', _currentUser.id).single();
+      const { data } = await _supa.from('unassigned_zones').select('data').eq('user_id', _currentUser.id).maybeSingle();
       return data?.data || [];
     } catch(e) { return []; }
   },
@@ -2969,7 +2968,7 @@ async function _checkAndMigrateLocalData() {
     if (!hasZones) return; // nothing to migrate
 
     // Check if Supabase already has data for this user
-    const { data: existingZones } = await _supa.from('zones').select('data').eq('user_id', _currentUser.id).single();
+    const { data: existingZones } = await _supa.from('zones').select('data').eq('user_id', _currentUser.id).maybeSingle();
     const alreadyHasData = existingZones?.data && existingZones.data.length > 0;
     if (alreadyHasData) return; // already migrated, skip
 
