@@ -347,12 +347,20 @@
   .modal label:first-of-type{margin-top:0;}
 
   @media(max-width:700px){
-    body{grid-template-columns:1fr;}
-    aside{position:absolute;top:56px;left:0;height:calc(100vh - 56px);width:300px;z-index:500;transform:translateX(-100%);}
+    body{grid-template-columns:1fr;grid-template-rows:56px 1fr;}
+    header{grid-template-columns:1fr;height:56px;}
+    .header-logo{width:100%;height:56px;justify-content:flex-start;padding:0 12px;gap:8px;}
+    .header-actions-right{padding:0 12px;gap:6px;}
+    #userMenuLabel{display:none;}
+    aside{position:fixed;top:56px;left:0;height:calc(100vh - 56px);width:85vw;max-width:360px;z-index:500;transform:translateX(-100%);box-shadow:4px 0 24px rgba(0,0,0,0.18);}
     aside.open{transform:translateX(0);}
-    .map-wrap{grid-column:1;}
+    .map-wrap{grid-column:1;grid-row:2;}
     #sidebarToggle{display:block;}
     .status-text{display:none;}
+    .county-polys{padding:3px 8px 3px 16px;}
+    .county-header{padding:3px 8px 3px 16px;}
+    .state-header-wrap{padding:3px 8px;}
+    .polygon-item{padding:0 8px 0 10px;}
   }
   /* AUTH MODAL */
   #authModal{z-index:10002!important;}

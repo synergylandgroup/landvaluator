@@ -2219,7 +2219,24 @@ function loadZonesFromURL() {
 // =========================================================
 // SIDEBAR TOGGLE
 // =========================================================
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const isOpen = sidebar.classList.toggle('open');
+  // On mobile, add a tap-to-close overlay behind the sidebar
+  let overlay = document.getElementById('sidebarOverlay');
+  if (isOpen) {
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'sidebarOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:499;background:rgba(0,0,0,0.3);';
+      overlay.onclick = () => toggleSidebar();
+      document.body.appendChild(overlay);
+    }
+    overlay.style.display = '';
+  } else {
+    if (overlay) overlay.style.display = 'none';
+  }
+}
 
 // =========================================================
 // GOOGLE SHEETS
