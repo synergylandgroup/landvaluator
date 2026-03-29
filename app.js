@@ -1673,8 +1673,8 @@ function renderPolygonList() {
             <div class="poly-name">ZONE ${p.letter}</div>
             <div class="poly-count">${p.countyName ? p.countyName+' County, '+p.stateAbbr : ''}</div>
           </div>
-          <span class="tip-wrap"><span class="zone-prop-count tip-anchor" style="cursor:default">${p.propCount||0}</span><span class="tip-box tip-sidebar">${p.propCount||0} propert${(p.propCount||0)===1?'y':'ies'} assigned to Zone ${p.letter}</span></span><span class="tip-wrap"><button class="poly-btn notes-btn" onclick="openZoneDescModal('${p.id}')">⚙</button><span class="tip-box tip-sidebar">Open pricing panel for Zone ${p.letter}</span></span>
-          <span class="tip-wrap"><button class="poly-btn delete-btn">✕</button><span class="tip-box tip-sidebar">Delete Zone ${p.letter}</span></span>
+          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:auto"><span class="tip-wrap"><span class="zone-prop-count tip-anchor" style="cursor:default">${p.propCount||0}</span><span class="tip-box tip-sidebar">${p.propCount||0} propert${(p.propCount||0)===1?'y':'ies'} assigned to Zone ${p.letter}</span></span><span class="tip-wrap"><button class="poly-btn notes-btn" onclick="openZoneDescModal('${p.id}')">⚙</button><span class="tip-box tip-sidebar">Open pricing panel for Zone ${p.letter}</span></span>
+          <span class="tip-wrap"><button class="poly-btn delete-btn">✕</button><span class="tip-box tip-sidebar">Delete Zone ${p.letter}</span></span></div>
         `;
         div.querySelector('.notes-btn').addEventListener('click', e => { e.stopPropagation(); openZoneDescModal(p.id); });
         div.querySelector('.delete-btn').addEventListener('click', e => { e.stopPropagation(); deletePoly(p.id); });
@@ -1713,9 +1713,9 @@ function renderPolygonList() {
             <div class="poly-name" style="color:#718096">UNASSIGNED</div>
             <div class="poly-count">${countyName} County, ${stateAbbr}</div>
           </div>
-          <span class="tip-wrap"><span class="zone-prop-count tip-anchor" style="background:#e8ebef;color:#718096;cursor:default">${_unassignedCount}</span><span class="tip-box tip-sidebar">${_unassignedCount} unassigned propert${_unassignedCount===1?'y':'ies'} in ${countyName} County</span></span>
+          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:auto"><span class="tip-wrap"><span class="zone-prop-count tip-anchor" style="background:#e8ebef;color:#718096;cursor:default">${_unassignedCount}</span><span class="tip-box tip-sidebar">${_unassignedCount} unassigned propert${_unassignedCount===1?'y':'ies'} in ${countyName} County</span></span>
           <span class="tip-wrap"><button class="poly-btn notes-btn" data-uid="${_uId}">⚙</button><span class="tip-box tip-sidebar">Open pricing panel for Unassigned properties</span></span>
-          <span class="tip-wrap"><button class="poly-btn delete-btn" data-uid="${_uId}">✕</button><span class="tip-box tip-sidebar">Remove Unassigned pricing data</span></span>
+          <span class="tip-wrap"><button class="poly-btn delete-btn" data-uid="${_uId}">✕</button><span class="tip-box tip-sidebar">Remove Unassigned pricing data</span></span></div>
         `;
         uDiv.querySelector('.notes-btn').addEventListener('click', e => {
           e.stopPropagation();
