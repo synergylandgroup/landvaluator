@@ -595,10 +595,10 @@ function _initPinLayer() {
         : '';
 
       const html = `
-        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-width:190px;max-width:220px;background:#ffffff;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <span style="font-size:11px;color:#6b7d95;font-weight:500">APN: <span style="color:#1a2332;font-weight:700">${p.apn || '—'}</span></span>
-            <span style="font-size:10px;font-weight:700;background:#edf2f8;color:#2c5282;border-radius:4px;padding:2px 6px">${zoneLabel}</span>
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-width:240px;max-width:280px;background:#ffffff;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+            <span style="font-size:11px;color:#6b7d95;font-weight:500;min-width:0">APN: <span style="color:#1a2332;font-weight:700">${p.apn || '—'}</span></span>
+            <span style="font-size:10px;font-weight:700;background:#edf2f8;color:#2c5282;border-radius:4px;padding:2px 8px;flex-shrink:0;white-space:nowrap">${zoneLabel}</span>
           </div>
           ${ownerRow}
           <div style="font-size:11px;color:#6b7d95;border-bottom:1px solid #eee;padding-bottom:3px;margin-bottom:3px;display:flex;justify-content:space-between"><span>County</span><span style="color:#1a2332;font-weight:500">${p.county ? p.county + ', ' + p.state : '—'}</span></div>
@@ -607,7 +607,7 @@ function _initPinLayer() {
           ${linkHtml}
         </div>`;
 
-      _pinPopup = new mapboxgl.Popup({ offset: 14, closeButton: true, maxWidth: '240px' })
+      _pinPopup = new mapboxgl.Popup({ offset: 14, closeButton: true, maxWidth: '300px' })
         .setLngLat(coords)
         .setHTML(html)
         .addTo(map);
