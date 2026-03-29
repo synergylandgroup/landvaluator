@@ -304,16 +304,14 @@ class NorthControl {
 }
 map.addControl(new NorthControl(), 'bottom-right');
 
-function resetNorth() { map.easeTo({ bearing: 0, pitch: 0, duration: 500 }); }
 
 function changeMapStyle(idx) {
-  const center = map.getCenter();
-  const zoom   = map.getZoom();
+  const center  = map.getCenter();
+  const zoom    = map.getZoom();
   const bearing = map.getBearing();
   const pitch   = map.getPitch();
   polygons.forEach(p => _removeZoneLabel(p));
   map.setStyle(MAP_STYLES[parseInt(idx)].id);
-  _activeStyleIdx = parseInt(idx);
   map.once('style.load', () => {
     map.jumpTo({ center, zoom, bearing, pitch });
   });
@@ -423,7 +421,6 @@ function _initPinLayer() {
         : '';
 
       const html = `
-        <style>.mapboxgl-popup-content{background:#ffffff!important;border-radius:10px!important;padding:12px 14px!important;box-shadow:0 4px 20px rgba(0,0,0,0.18)!important;border:1px solid #dde1e9!important;}.mapboxgl-popup-tip{border-top-color:#ffffff!important;}</style>
         <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-width:190px;max-width:220px;background:#ffffff;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
             <span style="font-size:11px;color:#6b7d95;font-weight:500">APN: <span style="color:#1a2332;font-weight:700">${p.apn || '—'}</span></span>
@@ -1300,76 +1297,6 @@ async function saveAndSyncZone() {
   if (btn) { btn.disabled = false; btn.innerHTML = '💾 Save &amp; Sync'; }
 }
 
-function saveZoneEditor() {
-  if (!_editingDescId) return;
-  const p = polygons.find(p => p.id === _editingDescId);
-  if (!p) return;
-
-  p.description = document.getElementById('zeNotes').value.trim();
-  p.pricingTiers = zeCollectRows();
-  p.allZones = document.getElementById('zeAllZones').checked;
-
-  persistZones();
-  closeZoneEditor();
-  const label = p.allZones ? `Zone ${p.letter} saved (ALL zones pricing)` : `Zone ${p.letter} saved`;
-  showToast(label, 'success');
-
-}
-
-// -- Sync ALL zones pricing to sheet in one batch --
-async function syncAllPricingToSheet() {
-  const sa = document.getElementById('stateSelect').value;
-  const cn = document.getElementById('countySelect').value;
-  // Try current county first, then fall back to any connected config
-  let cfg = (sa && cn) ? (_getSheetConfig(sa, cn) || sheetConfig) : sheetConfig;
-  // If still no config, try to find one from the polygons being synced
-  if (!cfg || !cfg.sheetId) {
-    const anyPoly = polygons.find(p => p.stateAbbr && p.countyName && _getSheetConfig(p.stateAbbr, p.countyName));
-    if (anyPoly) cfg = _getSheetConfig(anyPoly.stateAbbr, anyPoly.countyName);
-  }
-  if (!cfg || !cfg.sheetId) { showToast('Connect a Google Sheet first', 'error'); return; }
-
-  // Collect tiers from ALL polygons for this county
-  // Filter to only polygons matching current state+county
-  const countyPolys = polygons.filter(p => {
-    return !p.stateAbbr || (p.stateAbbr === sa && p.countyName === cn);
-  });
-
-  if (!countyPolys.length) { showToast('No zones with pricing to sync', 'error'); return; }
-
-  const allTiers = [];
-  countyPolys
-    .slice() // don't mutate
-    .sort((a, b) => { const s = p => p._isUnassigned ? 'ZZZZZ' : (p.letter||''); return s(a).localeCompare(s(b)); }) // A→Z, UNASSIGNED last
-    .forEach(poly => {
-      const zoneLabel = poly._isUnassigned ? 'UNASSIGNED' : (poly.allZones ? 'ALL' : poly.letter);
-      (poly.pricingTiers || [])
-        .filter(t => t.pricePerAcre !== '' && t.pricePerAcre !== undefined && t.pricePerAcre !== null)
-        .sort((a, b) => parseFloat(a.minAcres || 0) - parseFloat(b.minAcres || 0)) // low→high acreage
-        .forEach(t => {
-          allTiers.push({
-            zone: zoneLabel,
-            minAcres: t.minAcres,
-            maxAcres: t.maxAcres,
-            pricePerAcre: t.pricePerAcre,
-          });
-        });
-    });
-
-  if (!allTiers.length) { showToast('No pricing tiers to sync — add pricing to your zones first', 'error'); return; }
-
-  showToast('Syncing all pricing to sheet...', 'info');
-  try {
-    const r = await fetch('/.netlify/functions/sheets-write-pricing', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sheetId: cfg.sheetId, tiers: allTiers }),
-    });
-    const data = await r.json();
-    if (data.success) showToast(`${allTiers.length} pricing rows synced to sheet ✓`, 'success');
-    else showToast('Sync failed: ' + data.error, 'error');
-  } catch(e) { showToast('Sync failed: ' + e.message, 'error'); }
-}
 
 // -- Table helpers --------------------------------------
 function zeRenderRows(rows, defaultLetter) {
@@ -2068,20 +1995,6 @@ function importZonesFile(e) {
   reader.readAsText(file);
 }
 
-// =========================================================
-// SHARE URL
-// =========================================================
-function shareURL() {
-  if (!polygons.length) { showToast('Draw some zones first', 'error'); return; }
-  const encoded = btoa(encodeURIComponent(JSON.stringify(polygons.map(_polyToJSON))));
-  const url = window.location.origin + window.location.pathname + '?zones=' + encoded;
-  if (url.length > 8000) { showToast('Too many zones — use Save Zones file instead', 'error'); return; }
-  navigator.clipboard.writeText(url).then(() => showToast('Share link copied!', 'success')).catch(() => {
-    const b = document.getElementById('shareBanner');
-    b.textContent = '🔗 ' + url; b.style.display = 'block';
-    setTimeout(() => b.style.display = 'none', 8000);
-  });
-}
 function copyShareURL() {
   const b = document.getElementById('shareBanner');
   navigator.clipboard.writeText(b.textContent.replace('🔗 ','')).then(() => { showToast('Copied!','success'); b.style.display='none'; });
@@ -2215,20 +2128,6 @@ function disconnectSheet() {
   showToast('Sheet disconnected', 'info');
 }
 
-function disconnectSheetForCounty(stateAbbr, countyName, evt) {
-  if (evt) evt.stopPropagation();
-  const key = _countyKey(stateAbbr, countyName);
-  delete sheetConfigs[key];
-  DB.saveSheetConfigs(sheetConfigs);
-  const sa = document.getElementById('stateSelect').value;
-  const cn = document.getElementById('countySelect').value;
-  if (sa === stateAbbr && cn === countyName) {
-    sheetConfig = null;
-    setConnected(false);
-  }
-  renderPolygonList();
-  showToast(`Sheet disconnected from ${countyName} County`, 'info');
-}
 
 async function connectSheets() {
   const sa = document.getElementById('stateSelect').value;
@@ -2422,108 +2321,10 @@ function pointInPolygon(lat, lng, pts) {
   }
   return inside;
 }
-async function runAssignment() {
-  if (!polygons.length) { showToast('Draw at least one zone first', 'error'); return; }
-  if (!properties.length) { showToast('No properties loaded. Connect Google Sheets first.', 'error'); return; }
-  polygons.forEach(p => p.propCount = 0);
-  let assigned = 0;
-
-  // Step 1 — compute assignments in memory
-  const assignments = [];
-  properties.forEach(prop => {
-    prop.zone = null;
-    for (const poly of polygons) {
-      if (poly._isUnassigned) continue;
-      if (pointInPolygon(prop.lat, prop.lng, poly.points)) {
-        prop.zone = poly.letter;
-        poly.propCount++;
-        assigned++;
-        if (prop.apn) assignments.push({ apn: prop.apn, zone: poly.letter });
-        break;
-      }
-    }
-    // Write UNASSIGNED for properties with no zone
-    if (!prop.zone && prop.apn) assignments.push({ apn: prop.apn, zone: 'UNASSIGNED' });
-  });
-
-  document.getElementById('statAssigned').textContent = assigned;
-  if (_pinsVisible) _rebuildPins();
-  renderPolygonList();
-  showToast(`${assigned} properties assigned — writing to sheet...`, 'info');
-
-  // Step 2 — write zone letters back to sheet via Netlify function
-  // Always get freshest config from the per-county map
-  const sa = document.getElementById('stateSelect').value;
-  const cn = document.getElementById('countySelect').value;
-  const activeCfg = (sa && cn) ? (_getSheetConfig(sa, cn) || sheetConfig) : sheetConfig;
-
-  if (assignments.length && activeCfg && activeCfg.sheetId) {
-    try {
-      const r = await fetch('/.netlify/functions/sheets-write-zones', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sheetId:   activeCfg.sheetId,
-          sheetName: 'Scrubbed and Priced',
-          colAPN:    activeCfg.colAPN || 'APN',
-          assignments,
-        }),
-      });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.error || 'HTTP ' + r.status);
-      showToast(`${assignments.length} zone assignments written to sheet ✓`, 'success');
-    } catch(e) {
-      showToast('Zone write failed: ' + e.message, 'error');
-      console.error('sheets-write-zones error:', e);
-    }
-  } else {
-    showToast(`${assigned} of ${properties.length} properties assigned`, 'success');
-  }
-}
 function _markerColor(m, c) { if (m) m.getElement().style.background = c; }
 
 // Pin toggle removed — pins disabled pending better implementation
 
-// =========================================================
-// EXPORT CSV
-// =========================================================
-function exportCSV() {
-  if (!properties.length) { showToast('No properties to export', 'error'); return; }
-  const zoneCol = sheetConfig.colZone || 'Zone';
-  const headers = [...properties[0].headers];
-  if (!headers.includes(zoneCol)) headers.push(zoneCol);
-  const zi = headers.indexOf(zoneCol);
-  const rows = [headers.map(ce).join(',')];
-  properties.forEach(prop => {
-    const row = [...prop.row];
-    while (row.length < headers.length) row.push('');
-    row[zi] = prop.zone || '';
-    rows.push(row.map(ce).join(','));
-  });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([rows.join('\n')], {type:'text/csv'}));
-  a.download = 'properties_with_zones.csv'; a.click();
-  showToast('CSV downloaded!', 'success');
-}
-function ce(v) {
-  if (v==null) return '';
-  const s = String(v);
-  return (s.includes(',')||s.includes('"')||s.includes('\n')) ? `"${s.replace(/"/g,'""')}"` : s;
-}
-function parseCSV(text) {
-  const rows = [];
-  text.split('\n').forEach(line => {
-    if (!line.trim()) return;
-    const row=[]; let cur='',inQ=false;
-    for(let i=0;i<line.length;i++){
-      if(line[i]==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
-      else if(line[i]===','&&!inQ){row.push(cur.trim());cur='';}
-      else cur+=line[i];
-    }
-    row.push(cur.trim()); rows.push(row);
-  });
-  return rows;
-}
 
 // =========================================================
 // COUNTY BOUNDARY
@@ -2722,10 +2523,6 @@ document.addEventListener('click', (e) => {
   }
 });
 
-function _refreshCustomSelects() {
-  _syncStateTrigger(stateSelect.value);
-  _syncCountyTrigger(document.getElementById('countySelect').value);
-}
 
 async function loadCounties(silent) {
   const abbr = stateSelect.value; if (!abbr) return;
@@ -2856,8 +2653,7 @@ async function _fetchCountyGeoJSON(fips, countyName) {
 
   // 2. Nominatim (OpenStreetMap) — completely independent fallback
   try {
-    const stateNames = {"01":"Alabama","02":"Alaska","04":"Arizona","05":"Arkansas","06":"California","08":"Colorado","09":"Connecticut","10":"Delaware","12":"Florida","13":"Georgia","15":"Hawaii","16":"Idaho","17":"Illinois","18":"Indiana","19":"Iowa","20":"Kansas","21":"Kentucky","22":"Louisiana","23":"Maine","24":"Maryland","25":"Massachusetts","26":"Michigan","27":"Minnesota","28":"Mississippi","29":"Missouri","30":"Montana","31":"Nebraska","32":"Nevada","33":"New Hampshire","34":"New Jersey","35":"New Mexico","36":"New York","37":"North Carolina","38":"North Dakota","39":"Ohio","40":"Oklahoma","41":"Oregon","42":"Pennsylvania","44":"Rhode Island","45":"South Carolina","46":"South Dakota","47":"Tennessee","48":"Texas","49":"Utah","50":"Vermont","51":"Virginia","53":"Washington","54":"West Virginia","55":"Wisconsin","56":"Wyoming"};
-    const stateName = stateNames[fips];
+    const stateName = STATES.find(([,abbr]) => STATE_FIPS[abbr] === fips)?.[0];
     if (stateName) {
       const url = `https://nominatim.openstreetmap.org/search?county=${encodeURIComponent(countyName)}&state=${encodeURIComponent(stateName)}&country=USA&format=geojson&polygon_geojson=1&limit=1`;
       const r = await fetch(url, { headers: { 'User-Agent': 'LandValuator/1.0' } });
