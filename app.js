@@ -222,6 +222,8 @@ _supa.auth.onAuthStateChange(async (event, session) => {
     document.getElementById('authModal').classList.add('open');
     // Re-enable auth inputs
     document.querySelectorAll('#authModal input').forEach(el => { el.disabled = false; });
+    // Reset auth guard so the next login triggers a fresh _initAppAfterAuth()
+    _authAppReady = false;
     // Clear app state
     polygons.forEach(p => { _removeZoneLabel(p); _removeZoneLayers(p.id); });
     polygons = [];
@@ -679,6 +681,7 @@ function _initPinLayer() {
     });
 
     map.on('click', LAYER_PINS, (e) => {
+      if (!_pinsVisible) return;
       if (!e.features.length) return;
       const f = e.features[0];
       const p = f.properties;
@@ -1566,6 +1569,10 @@ async function saveAndSyncZone() {
     }
 
     showToast(p._isUnassigned ? `Unassigned Zone saved — pricing synced ✓` : `Zone ${p.letter} saved — ${assigned} assigned, pricing synced ✓`, 'success');
+
+    // Fire-and-forget: trigger refreshOfferPrices() in Apps Script
+    // Non-blocking — sync is already done; this just keeps the sheet up to date
+    fetch('/.netlify/functions/sheets-trigger-refresh', { method: 'POST' }).catch(() => {});
   } catch(err) {
     showToast('Sync error: ' + err.message, 'error');
   }
@@ -1630,7 +1637,7 @@ function renderPolygonList() {
 
   const list = document.getElementById('polygonsList');
   if (!polygons.length) {
-    list.innerHTML = '<div class="empty-state">No zones yet.<br>Select a state &amp; county,<br>then draw on the map.</div>';
+    list.innerHTML = '<div class="empty-state">No zones yet. Select a state and county, then draw polygons on the map to create pricing zones.</div>';
     return;
   }
 
