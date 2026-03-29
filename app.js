@@ -37,16 +37,22 @@ async function _authLogin() {
 }
 
 async function _authSignup() {
-  const email = document.getElementById('authSignupEmail').value.trim();
-  const password = document.getElementById('authSignupPassword').value;
-  const confirm = document.getElementById('authSignupConfirm').value;
+  const firstName = document.getElementById('authSignupFirst').value.trim();
+  const lastName  = document.getElementById('authSignupLast').value.trim();
+  const email     = document.getElementById('authSignupEmail').value.trim();
+  const password  = document.getElementById('authSignupPassword').value;
+  const confirm   = document.getElementById('authSignupConfirm').value;
   const btn = document.getElementById('authSignupBtn');
   const err = document.getElementById('authError');
+  if (!firstName || !lastName) { err.textContent = 'Please enter your first and last name.'; return; }
   if (!email || !password) { err.textContent = 'Please fill in all fields.'; return; }
   if (password.length < 8) { err.textContent = 'Password must be at least 8 characters.'; return; }
   if (password !== confirm) { err.textContent = 'Passwords do not match.'; return; }
   btn.disabled = true; btn.textContent = 'Creating account...'; err.textContent = '';
-  const { error } = await _supa.auth.signUp({ email, password });
+  const { error } = await _supa.auth.signUp({
+    email, password,
+    options: { data: { first_name: firstName, last_name: lastName } }
+  });
   if (error) { err.textContent = error.message; btn.disabled = false; btn.textContent = 'Create Account'; }
   else { err.style.color = 'var(--green)'; err.textContent = 'Account created! You are now signed in.'; }
 }
@@ -80,6 +86,25 @@ async function _authSendReset() {
   }
 }
 
+
+async function _authSetNewPassword() {
+  const password = document.getElementById('newPasswordInput').value;
+  const confirm  = document.getElementById('newPasswordConfirm').value;
+  const btn = document.getElementById('newPasswordBtn');
+  const err = document.getElementById('newPasswordError');
+  if (password.length < 8) { err.textContent = 'Password must be at least 8 characters.'; return; }
+  if (password !== confirm) { err.textContent = 'Passwords do not match.'; return; }
+  btn.disabled = true; btn.textContent = 'Updating...'; err.textContent = '';
+  const { error } = await _supa.auth.updateUser({ password });
+  if (error) {
+    err.textContent = error.message;
+    btn.disabled = false; btn.textContent = 'Update Password';
+  } else {
+    document.getElementById('newPasswordModal').classList.remove('open');
+    showToast('Password updated successfully ✓', 'success');
+  }
+}
+
 function _toggleUserMenu() {
   document.getElementById('userDropdown').classList.toggle('open');
 }
@@ -90,10 +115,15 @@ function _updateUserUI(user) {
   const label = document.getElementById('userMenuLabel');
   const emailEl = document.getElementById('userDropdownEmail');
   if (user) {
-    const initial = (user.email || '?')[0].toUpperCase();
+    const firstName = user.user_metadata?.first_name || '';
+    const lastName  = user.user_metadata?.last_name  || '';
+    const fullName  = [firstName, lastName].filter(Boolean).join(' ');
+    const initial   = (firstName || user.email || '?')[0].toUpperCase();
     avatar.textContent = initial;
-    label.textContent = user.email.split('@')[0];
-    emailEl.textContent = user.email;
+    label.textContent = firstName || user.email.split('@')[0];
+    emailEl.innerHTML = fullName
+      ? `<strong style="display:block;color:var(--text)">${fullName}</strong>${user.email}`
+      : user.email;
     wrap.style.display = '';
   } else {
     wrap.style.display = 'none';
@@ -124,9 +154,20 @@ _supa.auth.onAuthStateChange(async (event, session) => {
   _currentUser = session?.user || null;
   _updateUserUI(_currentUser);
 
+  // Password reset link clicked — show set-new-password modal
+  if (event === 'PASSWORD_RECOVERY') {
+    document.getElementById('authModal').classList.remove('open');
+    document.getElementById('newPasswordModal').classList.add('open');
+    document.getElementById('newPasswordInput').value = '';
+    document.getElementById('newPasswordConfirm').value = '';
+    document.getElementById('newPasswordError').textContent = '';
+    return; // don't init app yet — wait for password to be set
+  }
+
   if (_currentUser) {
     // User just logged in — hide auth modal, show app
     document.getElementById('authModal').classList.remove('open');
+    document.getElementById('newPasswordModal').classList.remove('open');
     document.getElementById('authError').textContent = '';
     // Disable auth inputs so browser stops offering password autofill
     document.querySelectorAll('#authModal input').forEach(el => { el.disabled = true; el.value = ''; });

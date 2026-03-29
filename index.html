@@ -686,6 +686,10 @@
       <div class="auth-forgot"><button onclick="_authShowReset()">Forgot password?</button></div>
     </div>
     <div id="authFormSignup" style="display:none" autocomplete="off">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px;">
+        <div class="auth-field"><label>First Name</label><input type="text" id="authSignupFirst" placeholder="Ray" autocomplete="off"></div>
+        <div class="auth-field"><label>Last Name</label><input type="text" id="authSignupLast" placeholder="Smith" autocomplete="off"></div>
+      </div>
       <div class="auth-field"><label>Email</label><input type="email" id="authSignupEmail" placeholder="you@example.com" autocomplete="email"></div>
       <div class="auth-field"><label>Password</label><input type="password" id="authSignupPassword" placeholder="8+ characters" autocomplete="new-password"></div>
       <div class="auth-field"><label>Confirm Password</label><input type="password" id="authSignupConfirm" placeholder="••••••••" autocomplete="new-password"></div>
@@ -706,6 +710,18 @@
     <div class="modal-actions" style="margin-top:12px;justify-content:center;">
       <button class="btn btn-ghost" onclick="document.getElementById('resetModal').classList.remove('open')">Cancel</button>
     </div>
+  </div>
+</div>
+
+<!-- Set New Password Modal (after password reset link) -->
+<div class="modal-overlay" id="newPasswordModal" style="z-index:10004!important;backdrop-filter:blur(8px);background:rgba(0,0,0,0.85);">
+  <div class="modal" style="width:380px;">
+    <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">Set New Password</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Choose a new password for your account.</div>
+    <div class="auth-field"><label>New Password</label><input type="password" id="newPasswordInput" placeholder="8+ characters" autocomplete="new-password"></div>
+    <div class="auth-field"><label>Confirm Password</label><input type="password" id="newPasswordConfirm" placeholder="••••••••" autocomplete="new-password"></div>
+    <button class="auth-submit" id="newPasswordBtn" onclick="_authSetNewPassword()">Update Password</button>
+    <div class="auth-error" id="newPasswordError"></div>
   </div>
 </div>
 </body>
