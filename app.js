@@ -598,7 +598,7 @@ function _initPinLayer() {
         <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-width:240px;max-width:280px;background:#ffffff;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
             <span style="font-size:11px;color:#6b7d95;font-weight:500;min-width:0">APN: <span style="color:#1a2332;font-weight:700">${p.apn || '—'}</span></span>
-            <span style="font-size:10px;font-weight:700;background:#edf2f8;color:#2c5282;border-radius:4px;padding:2px 8px;flex-shrink:0;white-space:nowrap">${zoneLabel}</span>
+            <span style="font-size:10px;font-weight:700;background:#edf2f8;color:#2c5282;border-radius:4px;padding:2px 8px;flex-shrink:0;white-space:nowrap;margin-right:20px">${zoneLabel}</span>
           </div>
           ${ownerRow}
           <div style="font-size:11px;color:#6b7d95;border-bottom:1px solid #eee;padding-bottom:3px;margin-bottom:3px;display:flex;justify-content:space-between"><span>County</span><span style="color:#1a2332;font-weight:500">${p.county ? p.county + ', ' + p.state : '—'}</span></div>
@@ -2924,8 +2924,8 @@ function _updateTooltipBtn(isOff) {
   const btn = document.getElementById('tooltipToggleBtn');
   if (btn) btn.classList.toggle('active', !isOff);
 }
-function _initTooltipToggle() {
-  const isOff = DB.loadUIState('tooltips_off', false);
+async function _initTooltipToggle() {
+  const isOff = await DB.loadUIState('tooltips_off', false);
   if (isOff) document.body.classList.add('tooltips-off');
   _updateTooltipBtn(isOff);
 }
@@ -2938,7 +2938,6 @@ document.getElementById('sheetsModal').addEventListener('click', e => { if (e.ta
 map.on('load', () => {
   _initDrawLayers();
   _initPinLayer();
-  _initTooltipToggle();
   _mapLoadFired = true;
 
   // If user is already logged in (session restored), run app init now
@@ -3003,6 +3002,9 @@ async function _checkAndMigrateLocalData() {
 // APP INIT — runs after auth confirmed
 // =========================================================
 async function _initAppAfterAuth() {
+  // Init tooltip state (must be after auth so DB.loadUIState has a user)
+  await _initTooltipToggle();
+
   // Check for localStorage data to migrate on first login
   await _checkAndMigrateLocalData();
 
