@@ -121,6 +121,8 @@ _supa.auth.onAuthStateChange(async (event, session) => {
     // User just logged in — hide auth modal, show app
     document.getElementById('authModal').classList.remove('open');
     document.getElementById('authError').textContent = '';
+    // Disable auth inputs so browser stops offering password autofill
+    document.querySelectorAll('#authModal input').forEach(el => { el.disabled = true; el.value = ''; });
     // If app not yet initialized, trigger init
     if (!_authAppReady) {
       _authAppReady = true;
@@ -130,6 +132,8 @@ _supa.auth.onAuthStateChange(async (event, session) => {
   } else {
     // User logged out — show auth modal, hide user menu
     document.getElementById('authModal').classList.add('open');
+    // Re-enable auth inputs
+    document.querySelectorAll('#authModal input').forEach(el => { el.disabled = false; });
     // Clear app state
     polygons.forEach(p => { _removeZoneLabel(p); _removeZoneLayers(p.id); });
     polygons = [];
@@ -2999,12 +3003,6 @@ async function _checkAndMigrateLocalData() {
 // APP INIT — runs after auth confirmed
 // =========================================================
 async function _initAppAfterAuth() {
-  // Safety net: rebuild labels/boundaries after map is fully ready
-  setTimeout(() => {
-    if (polygons.length) { _rebuildAllLabels(); _loadAllCountyBoundaries(true); }
-    _mapInitComplete = true;
-  }, 600);
-
   // Check for localStorage data to migrate on first login
   await _checkAndMigrateLocalData();
 
@@ -3015,6 +3013,12 @@ async function _initAppAfterAuth() {
   // Restore zones or load from URL
   const fromURL = loadZonesFromURL();
   if (!fromURL) await restoreZones();
+
+  // Safety net AFTER zones are loaded — rebuild labels/boundaries
+  setTimeout(() => {
+    if (polygons.length) { _rebuildAllLabels(); _loadAllCountyBoundaries(true); }
+    _mapInitComplete = true;
+  }, 600);
 
   // Check for ?state=XX&county=Name deep-link params
   const _urlParams   = new URLSearchParams(window.location.search);

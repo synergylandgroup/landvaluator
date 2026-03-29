@@ -673,13 +673,13 @@
       <button class="auth-tab active" id="authTabLogin" onclick="_authSwitchTab('login')">Sign In</button>
       <button class="auth-tab" id="authTabSignup" onclick="_authSwitchTab('signup')">Create Account</button>
     </div>
-    <div id="authFormLogin">
-      <div class="auth-field"><label>Email</label><input type="email" id="authLoginEmail" placeholder="you@example.com" autocomplete="email"></div>
-      <div class="auth-field"><label>Password</label><input type="password" id="authLoginPassword" placeholder="••••••••" autocomplete="current-password"></div>
+    <div id="authFormLogin" autocomplete="off">
+      <div class="auth-field"><label>Email</label><input type="email" id="authLoginEmail" placeholder="you@example.com" autocomplete="username"></div>
+      <div class="auth-field"><label>Password</label><input type="password" id="authLoginPassword" placeholder="••••••••" autocomplete="new-password"></div>
       <button class="auth-submit" id="authLoginBtn" onclick="_authLogin()">Sign In</button>
       <div class="auth-forgot"><button onclick="_authShowReset()">Forgot password?</button></div>
     </div>
-    <div id="authFormSignup" style="display:none">
+    <div id="authFormSignup" style="display:none" autocomplete="off">
       <div class="auth-field"><label>Email</label><input type="email" id="authSignupEmail" placeholder="you@example.com" autocomplete="email"></div>
       <div class="auth-field"><label>Password</label><input type="password" id="authSignupPassword" placeholder="8+ characters" autocomplete="new-password"></div>
       <div class="auth-field"><label>Confirm Password</label><input type="password" id="authSignupConfirm" placeholder="••••••••" autocomplete="new-password"></div>
