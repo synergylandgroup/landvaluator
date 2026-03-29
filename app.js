@@ -100,7 +100,13 @@ async function _authSetNewPassword() {
     err.textContent = error.message;
     btn.disabled = false; btn.textContent = 'Update Password';
   } else {
+    _passwordRecoveryMode = false;
     document.getElementById('newPasswordModal').classList.remove('open');
+    // Now init the app since user is logged in after password reset
+    if (!_authAppReady) {
+      _authAppReady = true;
+      if (_mapLoadFired) _initAppAfterAuth();
+    }
     showToast('Password updated successfully ✓', 'success');
   }
 }
@@ -156,12 +162,21 @@ _supa.auth.onAuthStateChange(async (event, session) => {
 
   // Password reset link clicked — show set-new-password modal
   if (event === 'PASSWORD_RECOVERY') {
+    _passwordRecoveryMode = true;
     document.getElementById('authModal').classList.remove('open');
     document.getElementById('newPasswordModal').classList.add('open');
     document.getElementById('newPasswordInput').value = '';
     document.getElementById('newPasswordConfirm').value = '';
     document.getElementById('newPasswordError').textContent = '';
+    // Disable auth inputs so they don't interfere
+    document.querySelectorAll('#authModal input').forEach(el => { el.disabled = true; el.value = ''; });
     return; // don't init app yet — wait for password to be set
+  }
+
+  // If in password recovery mode, ignore SIGNED_IN — keep showing the new password modal
+  if (_passwordRecoveryMode && event === 'SIGNED_IN') {
+    document.getElementById('newPasswordModal').classList.add('open');
+    return;
   }
 
   if (_currentUser) {
@@ -196,6 +211,7 @@ _supa.auth.onAuthStateChange(async (event, session) => {
 
 let _authAppReady = false;
 let _mapLoadFired = false;
+let _passwordRecoveryMode = false;
 
 
 // =========================================================
