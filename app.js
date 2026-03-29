@@ -6,6 +6,13 @@ const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const _supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let _currentUser = null;
 
+// Pre-fetch session immediately so map.on('load') knows if user is logged in
+// This prevents the auth modal from flashing for already-logged-in users
+(async () => {
+  const { data: { session } } = await _supa.auth.getSession();
+  if (session?.user) _currentUser = session.user;
+})();
+
 // =========================================================
 // AUTH FUNCTIONS
 // =========================================================
@@ -2968,50 +2975,6 @@ map.on('load', () => {
 });
 
 // =========================================================
-// LOCALSTORAGE → SUPABASE MIGRATION
-// On first login, check if localStorage has existing data
-// and offer to migrate it to the user's Supabase account
-// =========================================================
-async function _checkAndMigrateLocalData() {
-  try {
-    const lsZones = localStorage.getItem('lv_zones');
-    const lsConfigs = localStorage.getItem('lv_sheet_configs');
-    const lsAppState = localStorage.getItem('lv_app_state');
-    const lsUnassigned = localStorage.getItem('lv_unassigned');
-
-    // Check if there's anything worth migrating
-    const hasZones = lsZones && JSON.parse(lsZones).length > 0;
-    if (!hasZones) return; // nothing to migrate
-
-    // Check if Supabase already has data for this user
-    const { data: existingZones } = await _supa.from('zones').select('data').eq('user_id', _currentUser.id).maybeSingle();
-    const alreadyHasData = existingZones?.data && existingZones.data.length > 0;
-    if (alreadyHasData) return; // already migrated, skip
-
-    // Prompt user
-    const confirmed = await _showConfirm({
-      title: 'Migrate Your Saved Zones?',
-      sub: `We found ${JSON.parse(lsZones).length} zone(s) saved locally on this device. Would you like to import them into your account so they're available everywhere?`,
-      okLabel: 'Import Zones',
-    });
-    if (!confirmed) return;
-
-    // Migrate all data
-    if (lsZones)      await DB.saveZones(JSON.parse(lsZones));
-    if (lsConfigs)    await DB.saveSheetConfigs(JSON.parse(lsConfigs));
-    if (lsAppState)   await DB.saveAppState(JSON.parse(lsAppState));
-    if (lsUnassigned) await DB.saveUnassigned(JSON.parse(lsUnassigned));
-
-    // Clear localStorage now that data is in Supabase
-    ['lv_zones','lv_sheet_configs','lv_app_state','lv_unassigned'].forEach(k => localStorage.removeItem(k));
-
-    showToast('Zones migrated to your account ✓', 'success');
-  } catch(e) {
-    console.warn('Migration check error:', e);
-  }
-}
-
-// =========================================================
 // APP INIT — runs after auth confirmed
 // =========================================================
 async function _initAppAfterAuth() {
@@ -3021,9 +2984,6 @@ async function _initAppAfterAuth() {
 
   // Init tooltip state (must be after auth so DB.loadUIState has a user)
   _initTooltipToggle();
-
-  // Check for localStorage data to migrate on first login
-  await _checkAndMigrateLocalData();
 
   // Load sheet configs first
   const _savedCfgs = await DB.loadSheetConfigs();
