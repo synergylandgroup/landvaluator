@@ -6,11 +6,16 @@ const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const _supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let _currentUser = null;
 
+// Detect password recovery token in URL hash BEFORE Supabase processes it
+// Supabase appends #access_token=...&type=recovery to the redirect URL
+const _isPasswordRecovery = window.location.hash.includes('type=recovery');
+let _passwordRecoveryMode = _isPasswordRecovery;
+
 // Pre-fetch session immediately so map.on('load') knows if user is logged in
 // This prevents the auth modal from flashing for already-logged-in users
 (async () => {
   const { data: { session } } = await _supa.auth.getSession();
-  if (session?.user) _currentUser = session.user;
+  if (session?.user && !_passwordRecoveryMode) _currentUser = session.user;
 })();
 
 // =========================================================
@@ -156,6 +161,17 @@ document.addEventListener('keydown', (e) => {
 // =========================================================
 // AUTH STATE LISTENER — central hub for login/logout
 // =========================================================
+// If password recovery token detected in URL, show modal immediately on load
+if (_isPasswordRecovery) {
+  document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('newPasswordModal');
+    if (modal) {
+      modal.classList.add('open');
+      document.querySelectorAll('#authModal input').forEach(el => { el.disabled = true; });
+    }
+  });
+}
+
 _supa.auth.onAuthStateChange(async (event, session) => {
   _currentUser = session?.user || null;
   _updateUserUI(_currentUser);
@@ -211,7 +227,6 @@ _supa.auth.onAuthStateChange(async (event, session) => {
 
 let _authAppReady = false;
 let _mapLoadFired = false;
-let _passwordRecoveryMode = false;
 
 
 // =========================================================
