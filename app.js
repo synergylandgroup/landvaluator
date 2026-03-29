@@ -6,10 +6,15 @@ const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const _supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let _currentUser = null;
 
-// Detect password recovery token in URL hash BEFORE Supabase processes it
-// Supabase appends #access_token=...&type=recovery to the redirect URL
-const _isPasswordRecovery = window.location.hash.includes('type=recovery');
-let _passwordRecoveryMode = _isPasswordRecovery;
+let _passwordRecoveryMode = false;
+
+// Detect password recovery redirect from auth-callback function
+// The callback sets ?type=recovery as a clean query param we fully control
+if (new URLSearchParams(window.location.search).get('type') === 'recovery') {
+  _passwordRecoveryMode = true;
+  // Clean the URL immediately
+  history.replaceState(null, '', window.location.pathname);
+}
 
 // Pre-fetch session immediately so map.on('load') knows if user is logged in
 // This prevents the auth modal from flashing for already-logged-in users
@@ -81,7 +86,7 @@ async function _authSendReset() {
   if (!email) { err.textContent = 'Please enter your email.'; return; }
   btn.disabled = true; btn.textContent = 'Sending...'; err.textContent = '';
   const { error } = await _supa.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://landvaluator.app',
+    redirectTo: 'https://landvaluator.app/auth/callback?type=recovery',
   });
   if (error) { err.textContent = error.message; btn.disabled = false; btn.textContent = 'Send Reset Link'; }
   else {
@@ -161,17 +166,6 @@ document.addEventListener('keydown', (e) => {
 // =========================================================
 // AUTH STATE LISTENER — central hub for login/logout
 // =========================================================
-// If password recovery token detected in URL, show modal immediately on load
-if (_isPasswordRecovery) {
-  document.addEventListener('DOMContentLoaded', () => {
-    const modal = document.getElementById('newPasswordModal');
-    if (modal) {
-      modal.classList.add('open');
-      document.querySelectorAll('#authModal input').forEach(el => { el.disabled = true; });
-    }
-  });
-}
-
 _supa.auth.onAuthStateChange(async (event, session) => {
   _currentUser = session?.user || null;
   _updateUserUI(_currentUser);
@@ -189,10 +183,16 @@ _supa.auth.onAuthStateChange(async (event, session) => {
     return; // don't init app yet — wait for password to be set
   }
 
-  // If in password recovery mode, ignore SIGNED_IN — keep showing the new password modal
-  if (_passwordRecoveryMode && event === 'SIGNED_IN') {
+  // If in password recovery mode, show new password modal instead of logging in normally
+  if (_passwordRecoveryMode || event === 'PASSWORD_RECOVERY') {
+    _passwordRecoveryMode = true;
+    document.getElementById('authModal').classList.remove('open');
     document.getElementById('newPasswordModal').classList.add('open');
-    return;
+    document.getElementById('newPasswordInput').value = '';
+    document.getElementById('newPasswordConfirm').value = '';
+    document.getElementById('newPasswordError').textContent = '';
+    document.querySelectorAll('#authModal input').forEach(el => { el.disabled = true; el.value = ''; });
+    return; // don't init app until password is set
   }
 
   if (_currentUser) {
