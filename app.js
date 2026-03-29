@@ -120,11 +120,12 @@ async function _authSetNewPassword() {
   } else {
     _passwordRecoveryMode = false;
     document.getElementById('newPasswordModal').classList.remove('open');
-    // Now init the app since user is logged in after password reset
-    if (!_authAppReady) {
-      _authAppReady = true;
-      if (_mapLoadFired) _initAppAfterAuth();
-    }
+    // Always run init after password reset — _authAppReady may already be set
+    // from the SIGNED_IN event but init was skipped due to recovery mode
+    _currentUser = (await _supa.auth.getUser()).data.user;
+    _updateUserUI(_currentUser);
+    _authAppReady = true;
+    if (_mapLoadFired) _initAppAfterAuth();
     showToast('Password updated successfully ✓', 'success');
   }
 }
