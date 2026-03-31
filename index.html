@@ -539,78 +539,75 @@
 
 <!-- Google Sheets Modal -->
 <div class="modal-overlay" id="sheetsModal">
-  <div class="modal">
+  <div class="modal" style="padding:0;">
     <!-- Header -->
-    <div class="sm-header">
-      <div class="sm-title">Google Sheets Integration</div>
-      <div id="sheetsModalCounty" style="background:var(--accent-light);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;color:var(--zone-blue);display:none;margin-right:10px"></div>
-      <button class="sm-close" onclick="closeSheetsModal()">✕</button>
+    <div style="display:flex;align-items:center;padding:18px 20px 0;margin-bottom:18px;">
+      <div style="font-size:15px;font-weight:700;color:var(--text);flex:1;">Google Sheets</div>
+      <div id="sheetsModalCounty" style="background:var(--accent-light);border:1px solid var(--border);border-radius:20px;padding:3px 11px;font-size:11px;font-weight:600;color:var(--zone-blue);display:none;margin-right:8px;white-space:nowrap;"></div>
+      <button class="sm-close" onclick="closeSheetsModal()">&#x2715;</button>
     </div>
-
-    <!-- Service Account Instructions -->
-    <div class="sm-service-box">
-      <strong>Share your Google Sheet with this service account</strong>
-      Paste the email below into your Google Sheet's Share field and grant it Editor access.
-      <div class="sm-service-email" id="serviceEmailEl" onclick="navigator.clipboard.writeText(SERVICE_ACCOUNT_EMAIL).then(()=>showToast('Email copied!','success'))" title="Click to copy"></div>
-      <div style="margin-top:8px;font-size:11px;color:var(--muted);">Create a new sheet for this county by downloading the <a href="https://docs.google.com/spreadsheets/d/1HpTfSOxSMOPBzw8dZ0WD26Oo8kdMBNC5Rell0uucejs/copy" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;text-decoration:none;">LandValuator Google Sheets template ↗</a></div>
-    </div>
-
-    <!-- 5.2 — Status box: toggled between connected/not-connected by JS -->
-    <div class="sm-status-box not-connected" id="smStatusBox">
-      <div class="sm-status-dot"></div>
-      <div style="flex:1;min-width:0;">
-        <div class="sm-status-title" id="smStatusTitle">Sheet Not Connected</div>
-        <span class="sm-status-sub" id="smStatusSub">Enter your Google Sheets URL below to connect</span>
-      </div>
-      <button class="sm-open-btn" id="smOpenSheetBtn" style="display:none" onclick="">Open ↗</button>
-    </div>
-    <!-- Disconnect link — only visible when connected -->
-    <div id="smDisconnectRow" style="display:none;text-align:right;margin-top:-6px;margin-bottom:8px;">
-      <button class="sm-disconnect-link" id="smDisconnectBtn" onclick="disconnectSheet()">Disconnect &amp; re-enter URL</button>
-    </div>
-
-    <!-- 5.2 — URL field (hidden when connected) -->
-    <div id="smUrlField">
-      <label>Google Sheets URL</label>
-      <div class="gs-help" style="margin-bottom:4px">Paste the full URL from your browser — or just the Spreadsheet ID.</div>
-      <input type="text" id="sheetId" placeholder="https://docs.google.com/spreadsheets/d/.../edit">
-    </div>
-
-    <!-- Tab name -->
-    <label>Tab Name</label>
-    <input type="text" id="sheetName" value="LI Raw Dataset">
-
-    <!-- 5.2 — Column Mappings split into Read / Write groups -->
-    <div style="margin-top:12px;">
-      <!-- Read group -->
-      <div class="sm-col-group">
-        <div class="sm-col-group-header">
-          <span class="sm-col-group-label">Read Columns</span>
-          <span class="sm-col-group-tab">LI Raw Dataset</span>
+    <!-- Body -->
+    <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:12px;">
+      <!-- Steps section — hidden when connected -->
+      <div id="smStepsSection">
+        <!-- Step 1 -->
+        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">1</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">Get the template</div>
+            <div style="font-size:11px;color:var(--muted);line-height:1.55;">Create a new sheet for this county by downloading the <a href="https://docs.google.com/spreadsheets/d/1HpTfSOxSMOPBzw8dZ0WD26Oo8kdMBNC5Rell0uucejs/copy" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;text-decoration:none;">LandValuator Google Sheets template &#x2197;</a></div>
+          </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px;">
-          <div><label>Latitude</label><input type="text" id="colLat" value="Latitude"></div>
-          <div><label>Longitude</label><input type="text" id="colLng" value="Longitude"></div>
-          <div><label>Property ID (APN)</label><input type="text" id="colAPN" value="APN"></div>
-          <div><label>City</label><input type="text" id="colCity" value="City"></div>
-          <div><label>County</label><input type="text" id="colCounty" value="County"></div>
-          <div><label>State</label><input type="text" id="colState" value="State"></div>
-          <div style="grid-column:1/-1"><label>ZIP</label><input type="text" id="colZip" value="ZIP"></div>
+        <!-- Step 2 -->
+        <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">2</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">Share with the service account</div>
+            <div style="font-size:11px;color:var(--muted);line-height:1.55;margin-bottom:7px;">Paste this email into your sheet's Share field and grant Editor access.</div>
+            <div style="display:flex;align-items:center;background:#fff;border:1px solid var(--border);border-radius:8px;padding:7px 10px;gap:8px;cursor:pointer;" onclick="navigator.clipboard.writeText(SERVICE_ACCOUNT_EMAIL).then(()=>showToast('Email copied!','success'))">
+              <div id="serviceEmailEl" style="font-family:monospace;font-size:11px;color:var(--zone-blue);flex:1;word-break:break-all;"></div>
+              <div style="font-size:10px;font-weight:700;color:var(--accent);background:var(--accent-light);border:1px solid #b8cfe0;border-radius:6px;padding:2px 8px;white-space:nowrap;flex-shrink:0;">Copy</div>
+            </div>
+          </div>
+        </div>
+        <!-- Step 3 -->
+        <div style="display:flex;gap:12px;align-items:flex-start;" id="smUrlField">
+          <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;">3</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">Paste your sheet URL</div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:7px;">Copy the URL from your browser's address bar.</div>
+            <input type="text" id="sheetId" placeholder="https://docs.google.com/spreadsheets/d/.../edit" style="width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:12px;outline:none;font-family:var(--font);">
+          </div>
         </div>
       </div>
-      <!-- Write group -->
-      <div class="sm-col-group write">
-        <div class="sm-col-group-header">
-          <span class="sm-col-group-label">Write Column</span>
-          <span class="sm-col-group-tab">Scrubbed and Priced</span>
+      <!-- Status box -->
+      <div class="sm-status-box not-connected" id="smStatusBox" style="align-items:flex-start;">
+        <div class="sm-status-dot" style="margin-top:3px;flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;">
+          <div class="sm-status-title" id="smStatusTitle">Sheet not connected</div>
+          <div class="sm-status-sub" id="smStatusSub">Enter your Google Sheets URL above to connect</div>
         </div>
-        <div><label>Zone Output Column</label><input type="text" id="colZone" value="County Zone"></div>
+        <button class="sm-open-btn" id="smOpenSheetBtn" style="display:none;" onclick="">Open &#x2197;</button>
       </div>
-    </div>
-
-    <div class="modal-actions" style="margin-top:16px">
-      <button class="btn btn-ghost" onclick="closeSheetsModal()">Cancel</button>
-      <button class="btn btn-primary" id="smConnectBtn" onclick="connectSheets()">Connect &amp; Load</button>
+      <!-- Disconnect link -->
+      <div id="smDisconnectRow" style="display:none;text-align:right;margin-top:-8px;">
+        <button class="sm-disconnect-link" id="smDisconnectBtn" onclick="disconnectSheet()">Disconnect &amp; re-enter URL</button>
+      </div>
+      <!-- Hidden fields preserved for JS -->
+      <input type="hidden" id="sheetName" value="LI Raw Dataset">
+      <input type="hidden" id="colLat" value="Latitude">
+      <input type="hidden" id="colLng" value="Longitude">
+      <input type="hidden" id="colAPN" value="APN">
+      <input type="hidden" id="colCity" value="City">
+      <input type="hidden" id="colCounty" value="County">
+      <input type="hidden" id="colState" value="State">
+      <input type="hidden" id="colZip" value="ZIP">
+      <input type="hidden" id="colZone" value="County Zone">
+      <!-- Footer -->
+      <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:4px;">
+        <button class="btn btn-ghost" onclick="closeSheetsModal()">Cancel</button>
+        <button class="btn btn-primary" id="smConnectBtn" onclick="connectSheets()">Connect &amp; Load</button>
+      </div>
     </div>
   </div>
 </div>

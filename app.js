@@ -1239,9 +1239,9 @@ async function _fetchSheetName(sheetId) {
         if (sheetConfig && sheetConfig.sheetId === sheetId) sheetConfig.sheetTitle = name;
       }
     }
-    // Update the connected status box title if modal is open
-    const titleEl = document.getElementById('smStatusTitle');
-    if (titleEl) titleEl.textContent = name;
+    // Update the connected status sheet name if modal is open
+    const subEl = document.getElementById('smStatusSub');
+    if (subEl) subEl.textContent = name;
   } catch(e) {}
 }
 
@@ -1637,7 +1637,7 @@ function renderPolygonList() {
 
   const list = document.getElementById('polygonsList');
   if (!polygons.length) {
-    list.innerHTML = '<div class="empty-state">No zones yet. Select a state and county, then draw polygons on the map to create pricing zones.<br><br><a href="https://docs.google.com/spreadsheets/d/1HpTfSOxSMOPBzw8dZ0WD26Oo8kdMBNC5Rell0uucejs/copy" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;font-size:13px;text-decoration:none;">Download the LandValuator Google Sheets template ↗</a></div>';
+    list.innerHTML = '<div class="empty-state">No zones yet. Select a state and county, then draw polygons on the map to create pricing zones.</div>';
     return;
   }
 
@@ -2338,33 +2338,38 @@ function _parseSheetId(input) {
 
 // 5.2 — update sheets modal status box between connected / not-connected
 function _smSetConnected(isConnected, sheetName, sheetId, lastUrl) {
-  const box   = document.getElementById('smStatusBox');
-  const title = document.getElementById('smStatusTitle');
-  const sub   = document.getElementById('smStatusSub');
-  const openBtn = document.getElementById('smOpenSheetBtn');
-  const discRow = document.getElementById('smDisconnectRow');
-  const urlField = document.getElementById('smUrlField');
+  const box        = document.getElementById('smStatusBox');
+  const title      = document.getElementById('smStatusTitle');
+  const sub        = document.getElementById('smStatusSub');
+  const openBtn    = document.getElementById('smOpenSheetBtn');
+  const discRow    = document.getElementById('smDisconnectRow');
+  const urlField   = document.getElementById('smUrlField');
   const connectBtn = document.getElementById('smConnectBtn');
+  const stepsSection = document.getElementById('smStepsSection');
 
   if (isConnected) {
     box.className = 'sm-status-box connected';
-    title.textContent = sheetName || 'Connected';
-    sub.textContent = 'Connected';
+    box.style.alignItems = 'flex-start';
+    title.textContent = 'Sheet connected';
+    sub.textContent = sheetName || 'Connected';
+    sub.style.lineHeight = '1.45';
+    sub.style.wordBreak = 'break-word';
     openBtn.style.display = '';
     openBtn.onclick = () => window.open('https://docs.google.com/spreadsheets/d/' + sheetId + '/edit', '_blank');
     discRow.style.display = '';
-    urlField.style.display = 'none';
-    connectBtn.textContent = 'Refresh & Sync';
+    stepsSection.style.display = 'none';
+    connectBtn.textContent = 'Refresh & Load';
   } else {
     box.className = 'sm-status-box not-connected';
-    title.textContent = 'Sheet Not Connected';
+    box.style.alignItems = 'flex-start';
+    title.textContent = 'Sheet not connected';
     sub.textContent = lastUrl
       ? 'Previously connected URL restored below'
-      : 'Enter your Google Sheets URL below to connect';
+      : 'Enter your Google Sheets URL above to connect';
     openBtn.style.display = 'none';
     discRow.style.display = 'none';
+    stepsSection.style.display = '';
     urlField.style.display = '';
-    // Pre-fill with last used URL if available
     if (lastUrl) document.getElementById('sheetId').value = lastUrl;
     connectBtn.textContent = 'Connect & Load';
   }
