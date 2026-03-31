@@ -1240,8 +1240,9 @@ async function _fetchSheetName(sheetId) {
       }
     }
     // Update the connected status box title if modal is open
-    const titleEl = document.getElementById('smStatusTitle');
-    if (titleEl) titleEl.textContent = name;
+    // Update the connected sheet name in status box if modal is open
+    const subEl = document.getElementById('smStatusSub');
+    if (subEl) subEl.textContent = name;
   } catch(e) {}
 }
 
@@ -2339,33 +2340,36 @@ function _parseSheetId(input) {
 
 // 5.2 — update sheets modal status box between connected / not-connected
 function _smSetConnected(isConnected, sheetName, sheetId, lastUrl) {
-  const box   = document.getElementById('smStatusBox');
-  const title = document.getElementById('smStatusTitle');
-  const sub   = document.getElementById('smStatusSub');
-  const openBtn = document.getElementById('smOpenSheetBtn');
-  const discRow = document.getElementById('smDisconnectRow');
-  const urlField = document.getElementById('smUrlField');
-  const connectBtn = document.getElementById('smConnectBtn');
+  const box          = document.getElementById('smStatusBox');
+  const title        = document.getElementById('smStatusTitle');
+  const sub          = document.getElementById('smStatusSub');
+  const openBtn      = document.getElementById('smOpenSheetBtn');
+  const discRow      = document.getElementById('smDisconnectRow');
+  const stepsSection = document.getElementById('smStepsSection');
+  const connectBtn   = document.getElementById('smConnectBtn');
 
   if (isConnected) {
     box.className = 'sm-status-box connected';
-    title.textContent = sheetName || 'Connected';
-    sub.textContent = 'Connected';
+    box.style.alignItems = 'flex-start';
+    title.textContent = 'Sheet connected';
+    sub.textContent = sheetName || 'Connected';
+    sub.style.lineHeight = '1.45';
+    sub.style.wordBreak = 'break-word';
     openBtn.style.display = '';
     openBtn.onclick = () => window.open('https://docs.google.com/spreadsheets/d/' + sheetId + '/edit', '_blank');
     discRow.style.display = '';
-    urlField.style.display = 'none';
-    connectBtn.textContent = 'Refresh & Sync';
+    if (stepsSection) stepsSection.style.display = 'none';
+    connectBtn.textContent = 'Refresh & Load';
   } else {
     box.className = 'sm-status-box not-connected';
-    title.textContent = 'Sheet Not Connected';
+    box.style.alignItems = 'flex-start';
+    title.textContent = 'Sheet not connected';
     sub.textContent = lastUrl
-      ? 'Previously connected URL restored below'
-      : 'Enter your Google Sheets URL below to connect';
+      ? 'Previously connected URL restored above'
+      : 'Enter your Google Sheets URL above to connect';
     openBtn.style.display = 'none';
     discRow.style.display = 'none';
-    urlField.style.display = '';
-    // Pre-fill with last used URL if available
+    if (stepsSection) stepsSection.style.display = '';
     if (lastUrl) document.getElementById('sheetId').value = lastUrl;
     connectBtn.textContent = 'Connect & Load';
   }
@@ -2439,6 +2443,7 @@ function disconnectSheet() {
   // Restore not-connected state, pre-fill last URL
   _smSetConnected(false, '', '', lastUrl);
   renderPolygonList();
+  closeSheetsModal();
   showToast('Sheet disconnected', 'info');
 }
 
@@ -2564,6 +2569,10 @@ function _finishSheetConnect({ sa, cn, sheetConfig, sheetId, rawInput, sheetTitl
           break;
         }
       }
+    });
+    // Set propCount on each zone from the assignment results
+    countyPolys.forEach(poly => {
+      poly.propCount = properties.filter(p => p.zone === poly.letter).length;
     });
     document.getElementById('statAssigned').textContent = assigned;
     if (_pinsVisible) _rebuildPins();
