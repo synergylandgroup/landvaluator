@@ -1239,7 +1239,7 @@ async function _fetchSheetName(sheetId) {
         if (sheetConfig && sheetConfig.sheetId === sheetId) sheetConfig.sheetTitle = name;
       }
     }
-    // Update the connected status sheet name if modal is open
+    // Update the connected sheet name in status box if modal is open
     const subEl = document.getElementById('smStatusSub');
     if (subEl) subEl.textContent = name;
   } catch(e) {}
@@ -2338,14 +2338,13 @@ function _parseSheetId(input) {
 
 // 5.2 — update sheets modal status box between connected / not-connected
 function _smSetConnected(isConnected, sheetName, sheetId, lastUrl) {
-  const box        = document.getElementById('smStatusBox');
-  const title      = document.getElementById('smStatusTitle');
-  const sub        = document.getElementById('smStatusSub');
-  const openBtn    = document.getElementById('smOpenSheetBtn');
-  const discRow    = document.getElementById('smDisconnectRow');
-  const urlField   = document.getElementById('smUrlField');
-  const connectBtn = document.getElementById('smConnectBtn');
+  const box          = document.getElementById('smStatusBox');
+  const title        = document.getElementById('smStatusTitle');
+  const sub          = document.getElementById('smStatusSub');
+  const openBtn      = document.getElementById('smOpenSheetBtn');
+  const discRow      = document.getElementById('smDisconnectRow');
   const stepsSection = document.getElementById('smStepsSection');
+  const connectBtn   = document.getElementById('smConnectBtn');
 
   if (isConnected) {
     box.className = 'sm-status-box connected';
@@ -2357,19 +2356,18 @@ function _smSetConnected(isConnected, sheetName, sheetId, lastUrl) {
     openBtn.style.display = '';
     openBtn.onclick = () => window.open('https://docs.google.com/spreadsheets/d/' + sheetId + '/edit', '_blank');
     discRow.style.display = '';
-    stepsSection.style.display = 'none';
+    if (stepsSection) stepsSection.style.display = 'none';
     connectBtn.textContent = 'Refresh & Load';
   } else {
     box.className = 'sm-status-box not-connected';
     box.style.alignItems = 'flex-start';
     title.textContent = 'Sheet not connected';
     sub.textContent = lastUrl
-      ? 'Previously connected URL restored below'
+      ? 'Previously connected URL restored above'
       : 'Enter your Google Sheets URL above to connect';
     openBtn.style.display = 'none';
     discRow.style.display = 'none';
-    stepsSection.style.display = '';
-    urlField.style.display = '';
+    if (stepsSection) stepsSection.style.display = '';
     if (lastUrl) document.getElementById('sheetId').value = lastUrl;
     connectBtn.textContent = 'Connect & Load';
   }
