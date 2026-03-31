@@ -2225,8 +2225,9 @@ async function restoreZones() {
   } catch(e) { console.error('restoreUnassigned error:', e); }
 }
 function _loadZone(d, skipLayers) {
+  const _hasSheet = !!(d.stateAbbr && d.countyName && _getSheetConfig(d.stateAbbr, d.countyName));
   const poly = { id:d.id, name:d.name, letter:d.letter||'', stateAbbr:d.stateAbbr||'', countyName:d.countyName||'',
-    color:d.color, points:d.points, description:d.description||'', pricingTiers:d.pricingTiers||[], labelMarker:null, handles:[], _isRect:d.isRect||false, _bounds:d.bounds||null, propCount:d.propCount||0 };
+    color:d.color, points:d.points, description:d.description||'', pricingTiers:d.pricingTiers||[], labelMarker:null, handles:[], _isRect:d.isRect||false, _bounds:d.bounds||null, propCount:_hasSheet ? (d.propCount||0) : 0 };
   // Back-compat: derive stateAbbr/countyName from name if missing
   if (!poly.stateAbbr || !poly.countyName) {
     const m = poly.name.match(/^(.+) County,\s*([A-Z]{2})$/);
@@ -2435,7 +2436,7 @@ function disconnectSheet() {
   document.getElementById('statProps').textContent = properties.length;
   document.getElementById('statAssigned').textContent =
     polygons.reduce((sum, p) => sum + (!p._isUnassigned ? (p.propCount || 0) : 0), 0);
-  // 5.2 — restore not-connected state, pre-fill last URL
+  // Restore not-connected state, pre-fill last URL
   _smSetConnected(false, '', '', lastUrl);
   renderPolygonList();
   showToast('Sheet disconnected', 'info');
