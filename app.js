@@ -2424,6 +2424,13 @@ function disconnectSheet() {
     sheetConfig = null;
     setConnected(false);
   }
+  // Clear properties for this county and reset counters
+  properties = properties.filter(p => !(p.state === sa && p.county === cn));
+  // Reset prop count on all zones for this county
+  polygons.forEach(p => { if (p.stateAbbr === sa && p.countyName === cn) p.propCount = 0; });
+  document.getElementById('statProps').textContent = properties.length;
+  document.getElementById('statAssigned').textContent =
+    polygons.reduce((sum, p) => sum + (p.propCount || 0), 0);
   // 5.2 — restore not-connected state, pre-fill last URL
   _smSetConnected(false, '', '', lastUrl);
   renderPolygonList();
