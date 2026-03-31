@@ -1637,7 +1637,7 @@ function renderPolygonList() {
 
   const list = document.getElementById('polygonsList');
   if (!polygons.length) {
-    list.innerHTML = '<div class="empty-state">No zones yet. Select a state and county, then draw polygons on the map to create pricing zones.</div>';
+    list.innerHTML = '<div class="empty-state">No zones yet. Select a state and county, then draw polygons on the map to create pricing zones.<br><br><a href="https://docs.google.com/spreadsheets/d/1HpTfSOxSMOPBzw8dZ0WD26Oo8kdMBNC5Rell0uucejs/copy" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600;font-size:13px;text-decoration:none;">Download the LandValuator Google Sheets template ↗</a></div>';
     return;
   }
 
