@@ -2504,6 +2504,29 @@ async function connectSheets() {
     loadPropertiesFromFunction(data.properties, cn, data.scrubbedApns, data.ownerMap);
     const _sheetTitle = data.spreadsheetTitle || data.sheetTitle || sheetId;
 
+    // County name check — verify properties actually belong to the selected county
+    if (properties.length > 0) {
+      const _cnNormCheck = cn.toLowerCase().trim();
+      const _wrongCounty = properties.filter(p => {
+        const pc = (p.county || '').toLowerCase().replace(' county', '').trim();
+        return pc && pc !== _cnNormCheck;
+      });
+      if (_wrongCounty.length > 0) {
+        const _total = properties.length;
+        const _wrongCount = _wrongCounty.length;
+        const _wrongName = (_wrongCounty[0].county || 'unknown county') + ', ' + (_wrongCounty[0].state || '');
+        showToast(
+          'Import blocked — this sheet contains ' + _total + ' total properties, of which ' +
+          _wrongCount + ' belong to ' + _wrongName.trim() + ' instead of ' + cn + ' County, ' + sa + '.',
+          'error', 8000
+        );
+        properties.forEach(p => { if (p.marker) p.marker.remove(); });
+        properties = [];
+        document.getElementById('statProps').textContent = '0';
+        return;
+      }
+    }
+
     // 5.3 — County boundary validation
     const _fips = STATE_FIPS[sa];
     if (!_fips) {
@@ -3065,10 +3088,10 @@ function setConnected(v) {
   renderPolygonList();
 }
 let toastTimer;
-function showToast(msg, type='info') {
+function showToast(msg, type='info', duration=4500) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast '+type+' show';
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 4500);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), duration);
 }
 function saveAppState() {
   DB.saveAppState({ state: stateSelect.value, county: document.getElementById('countySelect').value }); // fire-and-forget async
