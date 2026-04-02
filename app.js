@@ -2388,13 +2388,14 @@ function openSheetsModal() {
   // 5.2 — status box + URL field visibility
   const lastUrl = existing && existing.sheetUrl ? existing.sheetUrl : '';
   if (existing && existing.sheetId) {
-    // Sanity check: if saved config's county doesn't match current county, clear it
-    const _savedCounty = (existing.countyName || '').toLowerCase().trim();
-    const _currCounty  = (cn || '').toLowerCase().trim();
-    if (_savedCounty && _currCounty && _savedCounty !== _currCounty) {
-      delete sheetConfigs[_countyKey(sa, cn)];
+    // Sanity check: if this sheetId is saved under a DIFFERENT county key, this config is wrong
+    const _currKey = _countyKey(sa, cn);
+    const _dupKey = Object.keys(sheetConfigs).find(k => k !== _currKey && sheetConfigs[k].sheetId === existing.sheetId);
+    if (_dupKey) {
+      const [_dupSa, _dupCn] = _dupKey.split('|');
+      delete sheetConfigs[_currKey];
       DB.saveSheetConfigs(sheetConfigs);
-      showToast('Previous sheet connection cleared — it was linked to ' + existing.countyName + ' County, not ' + cn + ' County.', 'error', 6000);
+      showToast('Previous sheet connection cleared — it belongs to ' + _dupCn + ' County, ' + _dupSa + ', not ' + cn + ' County, ' + sa + '.', 'error', 6000);
       _smSetConnected(false, '', '', '');
     } else {
       _smSetConnected(true, existing.sheetTitle || existing.sheetId, existing.sheetId, lastUrl);
