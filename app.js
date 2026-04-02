@@ -2388,18 +2388,16 @@ function openSheetsModal() {
   // 5.2 — status box + URL field visibility
   const lastUrl = existing && existing.sheetUrl ? existing.sheetUrl : '';
   if (existing && existing.sheetId) {
-    // Sanity check: if saved config's county doesn't match current county, treat as disconnected
+    // Sanity check: if saved config's county doesn't match current county, clear it
     const _savedCounty = (existing.countyName || '').toLowerCase().trim();
     const _currCounty  = (cn || '').toLowerCase().trim();
     if (_savedCounty && _currCounty && _savedCounty !== _currCounty) {
-      // Bad config — wrong county saved. Clear it and show disconnected state.
       delete sheetConfigs[_countyKey(sa, cn)];
       DB.saveSheetConfigs(sheetConfigs);
       showToast('Previous sheet connection cleared — it was linked to ' + existing.countyName + ' County, not ' + cn + ' County.', 'error', 6000);
       _smSetConnected(false, '', '', '');
     } else {
       _smSetConnected(true, existing.sheetTitle || existing.sheetId, existing.sheetId, lastUrl);
-      // Refresh title in background — picks up renames since last connect
       setTimeout(() => _fetchSheetName(existing.sheetId), 150);
     }
   } else {
@@ -2512,49 +2510,34 @@ async function connectSheets() {
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'HTTP ' + r.status);
-    loadPropertiesFromFunction(data.properties, cn, data.scrubbedApns, data.ownerMap);
-    const _sheetTitle = data.spreadsheetTitle || data.sheetTitle || sheetId;
-
-    // County name check — verify properties actually belong to the selected county
-    if (properties.length > 0) {
+    // County name check on RAW data — before filtering — to catch wrong-county sheets
+    if (data.properties && data.properties.length > 0) {
       const _cnNormCheck = cn.toLowerCase().trim();
-      const _wrongCounty = properties.filter(p => {
+      const _rawWrong = data.properties.filter(p => {
         const pc = (p.county || '').toLowerCase().replace(' county', '').trim();
         return pc && pc !== _cnNormCheck;
       });
-      if (_wrongCounty.length > 0) {
-        const _total = properties.length;
-        const _wrongCount = _wrongCounty.length;
-        const _wrongName = (_wrongCounty[0].county || 'unknown county').trim() + ', ' + (_wrongCounty[0].state || '').trim();
+      if (_rawWrong.length > 0) {
+        const _total = data.properties.length;
+        const _wrongCount = _rawWrong.length;
+        const _wrongCounty = (_rawWrong[0].county || 'unknown county').trim();
+        const _wrongState  = (_rawWrong[0].state  || '').trim();
+        const _wrongLabel  = _wrongState ? _wrongCounty + ', ' + _wrongState : _wrongCounty;
         showToast(
           'Import blocked — this sheet contains ' + _total + ' total properties, of which ' +
-          _wrongCount + ' belong to ' + _wrongName + ' instead of ' + cn + ' County, ' + sa + '.',
+          _wrongCount + ' belong to ' + _wrongLabel + ' instead of ' + cn + ' County, ' + sa + '.',
           'error', 8000
         );
-        properties.forEach(p => { if (p.marker) p.marker.remove(); });
-        properties = [];
-        document.getElementById('statProps').textContent = '0';
         return;
       }
     }
 
+    loadPropertiesFromFunction(data.properties, cn, data.scrubbedApns, data.ownerMap);
+    const _sheetTitle = data.spreadsheetTitle || data.sheetTitle || sheetId;
+
     // 5.3 — County boundary validation
     const _fips = STATE_FIPS[sa];
-    if (!_fips) {
-      showToast('Could not validate county boundary — state not recognised', 'error');
-      properties.forEach(p => { if (p.marker) p.marker.remove(); });
-      properties = [];
-      document.getElementById('statProps').textContent = '0';
-      return;
-    }
-    const _validResult = await _validatePropertiesInCounty(properties, _fips, cn);
-    if (_validResult === null) {
-      showToast('Could not fetch ' + cn + ' County boundary to validate properties. Please try again.', 'error');
-      properties.forEach(p => { if (p.marker) p.marker.remove(); });
-      properties = [];
-      document.getElementById('statProps').textContent = '0';
-      return;
-    }
+    const _validResult = _fips ? await _validatePropertiesInCounty(properties, _fips, cn) : null;
     if (_validResult) {
       const { outsideProps, total } = _validResult;
       const pct = total > 0 ? outsideProps.length / total : 0;
