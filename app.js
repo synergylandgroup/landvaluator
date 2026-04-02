@@ -1240,9 +1240,8 @@ async function _fetchSheetName(sheetId) {
       }
     }
     // Update the connected status box title if modal is open
-    // Update the connected sheet name in status box if modal is open
-    const subEl = document.getElementById('smStatusSub');
-    if (subEl) subEl.textContent = name;
+    const titleEl = document.getElementById('smStatusTitle');
+    if (titleEl) titleEl.textContent = name;
   } catch(e) {}
 }
 
@@ -2226,9 +2225,8 @@ async function restoreZones() {
   } catch(e) { console.error('restoreUnassigned error:', e); }
 }
 function _loadZone(d, skipLayers) {
-  const _hasSheet = !!(d.stateAbbr && d.countyName && _getSheetConfig(d.stateAbbr, d.countyName));
   const poly = { id:d.id, name:d.name, letter:d.letter||'', stateAbbr:d.stateAbbr||'', countyName:d.countyName||'',
-    color:d.color, points:d.points, description:d.description||'', pricingTiers:d.pricingTiers||[], labelMarker:null, handles:[], _isRect:d.isRect||false, _bounds:d.bounds||null, propCount:_hasSheet ? (d.propCount||0) : 0 };
+    color:d.color, points:d.points, description:d.description||'', pricingTiers:d.pricingTiers||[], labelMarker:null, handles:[], _isRect:d.isRect||false, _bounds:d.bounds||null, propCount:d.propCount||0 };
   // Back-compat: derive stateAbbr/countyName from name if missing
   if (!poly.stateAbbr || !poly.countyName) {
     const m = poly.name.match(/^(.+) County,\s*([A-Z]{2})$/);
@@ -2340,36 +2338,33 @@ function _parseSheetId(input) {
 
 // 5.2 — update sheets modal status box between connected / not-connected
 function _smSetConnected(isConnected, sheetName, sheetId, lastUrl) {
-  const box          = document.getElementById('smStatusBox');
-  const title        = document.getElementById('smStatusTitle');
-  const sub          = document.getElementById('smStatusSub');
-  const openBtn      = document.getElementById('smOpenSheetBtn');
-  const discRow      = document.getElementById('smDisconnectRow');
-  const stepsSection = document.getElementById('smStepsSection');
-  const connectBtn   = document.getElementById('smConnectBtn');
+  const box   = document.getElementById('smStatusBox');
+  const title = document.getElementById('smStatusTitle');
+  const sub   = document.getElementById('smStatusSub');
+  const openBtn = document.getElementById('smOpenSheetBtn');
+  const discRow = document.getElementById('smDisconnectRow');
+  const urlField = document.getElementById('smUrlField');
+  const connectBtn = document.getElementById('smConnectBtn');
 
   if (isConnected) {
     box.className = 'sm-status-box connected';
-    box.style.alignItems = 'flex-start';
-    title.textContent = 'Sheet connected';
-    sub.textContent = sheetName || 'Connected';
-    sub.style.lineHeight = '1.45';
-    sub.style.wordBreak = 'break-word';
+    title.textContent = sheetName || 'Connected';
+    sub.textContent = 'Connected';
     openBtn.style.display = '';
     openBtn.onclick = () => window.open('https://docs.google.com/spreadsheets/d/' + sheetId + '/edit', '_blank');
     discRow.style.display = '';
-    if (stepsSection) stepsSection.style.display = 'none';
-    connectBtn.textContent = 'Refresh & Load';
+    urlField.style.display = 'none';
+    connectBtn.textContent = 'Refresh & Sync';
   } else {
     box.className = 'sm-status-box not-connected';
-    box.style.alignItems = 'flex-start';
-    title.textContent = 'Sheet not connected';
+    title.textContent = 'Sheet Not Connected';
     sub.textContent = lastUrl
-      ? 'Previously connected URL restored above'
-      : 'Enter your Google Sheets URL above to connect';
+      ? 'Previously connected URL restored below'
+      : 'Enter your Google Sheets URL below to connect';
     openBtn.style.display = 'none';
     discRow.style.display = 'none';
-    if (stepsSection) stepsSection.style.display = '';
+    urlField.style.display = '';
+    // Pre-fill with last used URL if available
     if (lastUrl) document.getElementById('sheetId').value = lastUrl;
     connectBtn.textContent = 'Connect & Load';
   }
@@ -2426,24 +2421,9 @@ function disconnectSheet() {
     sheetConfig = null;
     setConnected(false);
   }
-  // Clear properties for this county
-  properties = properties.filter(p => !(
-    (p.state || '').toUpperCase() === sa &&
-    (p.county || '').toLowerCase().replace(' county','').trim() === cn.toLowerCase().trim()
-  ));
-  // Remove virtual unassigned polygon for this county
-  const _uId = `__unassigned__${sa}|${cn}`;
-  polygons = polygons.filter(p => p.id !== _uId);
-  // Reset propCount to 0 on all real zones for this county
-  polygons.forEach(p => { if (p.stateAbbr === sa && p.countyName === cn) p.propCount = 0; });
-  // Update stat counters
-  document.getElementById('statProps').textContent = properties.length;
-  document.getElementById('statAssigned').textContent =
-    polygons.reduce((sum, p) => sum + (!p._isUnassigned ? (p.propCount || 0) : 0), 0);
-  // Restore not-connected state, pre-fill last URL
+  // 5.2 — restore not-connected state, pre-fill last URL
   _smSetConnected(false, '', '', lastUrl);
   renderPolygonList();
-  closeSheetsModal();
   showToast('Sheet disconnected', 'info');
 }
 
@@ -2453,8 +2433,8 @@ async function connectSheets() {
   const cn = document.getElementById('countySelect').value;
   if (!sa || !cn) { showToast('Please select a State and County first', 'error'); return; }
 
-  // When already connected, the URL field is hidden — fall back to the saved sheetId
-  const activeCfg = _getSheetConfig(sa, cn) || sheetConfig;
+  // When already connected, the URL field is hidden — fall back to the saved sheetId for THIS county only
+  const activeCfg = _getSheetConfig(sa, cn);
   const urlField  = document.getElementById('sheetId');
   const rawInput  = urlField.value.trim() || (activeCfg && activeCfg.sheetUrl) || (activeCfg && activeCfg.sheetId) || '';
   if (!rawInput) { showToast('Please enter a Google Sheets URL or ID', 'error'); return; }
@@ -2506,7 +2486,22 @@ async function connectSheets() {
 
     // 5.3 — County boundary validation
     const _fips = STATE_FIPS[sa];
-    const _validResult = _fips ? await _validatePropertiesInCounty(properties, _fips, cn) : null;
+    if (!_fips) {
+      showToast('Could not validate county boundary — state FIPS not found', 'error');
+      properties.forEach(p => { if (p.marker) p.marker.remove(); });
+      properties = [];
+      document.getElementById('statProps').textContent = '0';
+      return;
+    }
+    const _validResult = await _validatePropertiesInCounty(properties, _fips, cn);
+    if (_validResult === null) {
+      // Boundary fetch failed — block import to be safe
+      showToast('Could not fetch ' + cn + ' County boundary to validate properties. Please try again.', 'error');
+      properties.forEach(p => { if (p.marker) p.marker.remove(); });
+      properties = [];
+      document.getElementById('statProps').textContent = '0';
+      return;
+    }
     if (_validResult) {
       const { outsideProps, total } = _validResult;
       const pct = total > 0 ? outsideProps.length / total : 0;
@@ -2569,10 +2564,6 @@ function _finishSheetConnect({ sa, cn, sheetConfig, sheetId, rawInput, sheetTitl
           break;
         }
       }
-    });
-    // Set propCount on each zone from the assignment results
-    countyPolys.forEach(poly => {
-      poly.propCount = properties.filter(p => p.zone === poly.letter).length;
     });
     document.getElementById('statAssigned').textContent = assigned;
     if (_pinsVisible) _rebuildPins();
