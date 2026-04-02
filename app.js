@@ -2500,8 +2500,6 @@ async function connectSheets() {
     colZip:     document.getElementById('colZip').value.trim()      || 'ZIP',
     colZone:    document.getElementById('colZone').value.trim()     || 'County Zone',
   };
-  // Save per-county
-  _setSheetConfig(sa, cn, sheetConfig);
   showToast('Connecting to Google Sheets...', 'info');
   try {
     const r = await fetch('/.netlify/functions/sheets-read', {
@@ -2524,6 +2522,10 @@ async function connectSheets() {
         const _wrongCounty = (_rawWrong[0].county || 'unknown county').trim();
         const _wrongState  = (_rawWrong[0].state  || '').trim();
         const _wrongLabel  = _wrongState ? _wrongCounty + ', ' + _wrongState : _wrongCounty;
+        // Roll back any saved config for this county
+        delete sheetConfigs[_countyKey(sa, cn)];
+        DB.saveSheetConfigs(sheetConfigs);
+        _smSetConnected(false, '', '', '');
         showToast(
           'Import blocked — this sheet contains ' + _total + ' total properties, of which ' +
           _wrongCount + ' belong to ' + _wrongLabel + ' instead of ' + cn + ' County, ' + sa + '.',
