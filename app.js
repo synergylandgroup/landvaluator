@@ -2108,6 +2108,28 @@ async function deleteCounty(stateAbbr, countyName, evt) {
     if (map.getSource('state-boundary')) map.removeSource('state-boundary');
   }
   renderPolygonList(); persistZones(); _rebuildAllLabels();
+
+  // Clear sheet connection and properties for this county
+  const _cfgKey = _countyKey(stateAbbr, countyName);
+  if (sheetConfigs[_cfgKey]) {
+    delete sheetConfigs[_cfgKey];
+    DB.saveSheetConfigs(sheetConfigs);
+  }
+  properties = properties.filter(p => !(
+    (p.state || '').toUpperCase() === stateAbbr &&
+    (p.county || '').toLowerCase().replace(' county', '').trim() === countyName.toLowerCase().trim()
+  ));
+  // Remove virtual unassigned polygon for this county
+  polygons = polygons.filter(p => p.id !== `__unassigned__${stateAbbr}|${countyName}`);
+  // Update stat counters
+  document.getElementById('statProps').textContent = properties.length;
+  document.getElementById('statAssigned').textContent =
+    polygons.reduce((sum, p) => sum + (!p._isUnassigned ? (p.propCount || 0) : 0), 0);
+  // Reset header connection indicator if this was the active county
+  if (sheetConfig && sheetConfig.stateAbbr === stateAbbr && sheetConfig.countyName === countyName) {
+    sheetConfig = null;
+    setConnected(false);
+  }
 }
 
 async function clearAllZones() {
