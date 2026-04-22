@@ -75,6 +75,14 @@ async function _authSignup() {
   else { err.style.color = 'var(--green)'; err.textContent = 'Account created! You are now signed in.'; }
 }
 
+async function _authLoginGoogle() {
+  const { error } = await _supa.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: 'https://landvaluator.app' }
+  });
+  if (error) document.getElementById('authError').textContent = error.message;
+}
+
 async function _authSignOut() {
   _toggleUserMenu();
   await _supa.auth.signOut();
@@ -140,10 +148,10 @@ function _updateUserUI(user) {
   const label = document.getElementById('userMenuLabel');
   const emailEl = document.getElementById('userDropdownEmail');
   if (user) {
-    const firstName = user.user_metadata?.first_name || '';
-    const lastName  = user.user_metadata?.last_name  || '';
-    const fullName  = [firstName, lastName].filter(Boolean).join(' ');
-    const initial   = (firstName || user.email || '?')[0].toUpperCase();
+    const firstName = user.user_metadata?.first_name || user.user_metadata?.full_name?.split(' ')[0] || '';
+    const lastName  = user.user_metadata?.last_name  || user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '';
+    const fullName  = user.user_metadata?.full_name  || [firstName, lastName].filter(Boolean).join(' ');
+    const initial   = (firstName || fullName || user.email || '?')[0].toUpperCase();
     avatar.textContent = initial;
     label.textContent = firstName || user.email.split('@')[0];
     emailEl.innerHTML = fullName
@@ -1193,7 +1201,7 @@ function openZoneEditor(polyId) {
 
   // Header
   document.getElementById('zeBadge').textContent = p._isUnassigned ? 'UNASSIGNED PRICING PANEL' : `ZONE ${p.letter} PRICING PANEL`;
-  document.getElementById('zeTitle').textContent = p.name;
+  document.getElementById('zeTitle').textContent = p._isUnassigned ? `${p.countyName} County, ${p.stateAbbr}` : p.name;
   // zeAllZones checkbox removed from UI
 
 
