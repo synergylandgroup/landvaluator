@@ -269,7 +269,10 @@ _supa.auth.onAuthStateChange(async (event, session) => {
     document.getElementById('newPasswordInput').value = '';
     document.getElementById('newPasswordConfirm').value = '';
     document.getElementById('newPasswordError').textContent = '';
-    document.getElementById('newPasswordModal').classList.add('open');
+    // Only show modal if map hasn't already shown it
+    if (!document.getElementById('newPasswordModal').classList.contains('open')) {
+      document.getElementById('newPasswordModal').classList.add('open');
+    }
     return;
   }
 
@@ -3217,8 +3220,25 @@ map.on('load', () => {
   // If user is already logged in (session restored), run app init now
   // Otherwise wait for onAuthStateChange to fire with a valid session
   if (_currentUser) {
-    _authAppReady = true;
-    _initAppAfterAuth();
+    const _needsOnboarding = !_currentUser.user_metadata?.first_name &&
+      _currentUser.app_metadata?.provider !== 'google';
+    if (_needsOnboarding) {
+      // Show onboarding modal — don't init app until profile is complete
+      _passwordModalMode = 'invite';
+      document.getElementById('newPasswordTitle').textContent = 'Welcome to LandValuator!';
+      document.getElementById('newPasswordSubtitle').textContent = 'Please complete your profile to get started.';
+      document.getElementById('newPasswordNameFields').style.display = '';
+      document.getElementById('newPasswordCancelWrap').style.display = 'none';
+      document.getElementById('onboardFirst').value = '';
+      document.getElementById('onboardLast').value = '';
+      document.getElementById('newPasswordInput').value = '';
+      document.getElementById('newPasswordConfirm').value = '';
+      document.getElementById('newPasswordError').textContent = '';
+      document.getElementById('newPasswordModal').classList.add('open');
+    } else {
+      _authAppReady = true;
+      _initAppAfterAuth();
+    }
   } else {
     // Show auth modal while we wait
     document.getElementById('authModal').classList.add('open');
