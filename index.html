@@ -681,14 +681,10 @@
       <div class="auth-forgot"><button onclick="_authShowReset()">Forgot password?</button></div>
     </div>
     <div id="authFormSignup" style="display:none" autocomplete="off">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px;">
-        <div class="auth-field"><label>First Name</label><input type="text" id="authSignupFirst" placeholder="Ray" autocomplete="off"></div>
-        <div class="auth-field"><label>Last Name</label><input type="text" id="authSignupLast" placeholder="Smith" autocomplete="off"></div>
+      <div style="background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:20px 24px;text-align:center;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">Invite Only</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;">LandValuator is currently available by invitation only. To request access, email us at <a href="mailto:landvaluator@gmail.com" style="color:var(--accent);">landvaluator@gmail.com</a>.</div>
       </div>
-      <div class="auth-field"><label>Email</label><input type="email" id="authSignupEmail" placeholder="you@example.com" autocomplete="email"></div>
-      <div class="auth-field"><label>Password</label><input type="password" id="authSignupPassword" placeholder="8+ characters" autocomplete="new-password"></div>
-      <div class="auth-field"><label>Confirm Password</label><input type="password" id="authSignupConfirm" placeholder="••••••••" autocomplete="new-password"></div>
-      <button class="auth-submit" id="authSignupBtn" onclick="_authSignup()">Create Account</button>
     </div>
     <div class="auth-divider"><span>or</span></div>
     <button class="auth-google-btn" onclick="_authLoginGoogle()">
