@@ -526,7 +526,6 @@ Bound to each county's Google Spreadsheet. Key functions:
 | 4 | **KML parcel boundary outlines** | Viable if LandInsights can export all parcels in one KML per county (single-file-per-parcel is not viable). KML contains APN, address, owner, acreage. Would match to property records by APN and show clickable parcel outlines on map. Ray is checking with LandInsights. | ~1-2 hrs if viable |
 | 5 | **Onboarding video** | Short screen recording showing how to connect Google Sheets. Embed link in connect modal. Content creation, no code. | — |
 | 6 | **Email confirmation** | Currently OFF. Enable once SMTP is configured for production. | — |
-| 7 | **Street address in pin popup** | Low priority — many rural parcels have no address. Read from LI Raw Dataset via sheets-read.js, store on property object, display in pin popup. | ~30-45 min |
 | 8 | **Subscription billing** | Stripe integration. No monthly fee — 2.9% + 30¢ per transaction. | When ready to monetize |
 
 ---
