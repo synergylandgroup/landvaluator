@@ -7,6 +7,13 @@ const _supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let _currentUser = null;
 
 let _passwordRecoveryMode = false;
+let _passwordModalMode = 'recovery'; // 'recovery' | 'invite' | 'change'
+
+// Detect invite redirect (Supabase invite links include type=invite in hash)
+const _hashParamsInit = new URLSearchParams(window.location.hash.slice(1));
+if (_hashParamsInit.get('type') === 'invite') {
+  _passwordModalMode = 'invite';
+}
 
 // Detect password recovery redirect from auth-callback function
 // The callback sets ?type=recovery as a clean query param we fully control
@@ -83,6 +90,24 @@ async function _authLoginGoogle() {
   if (error) document.getElementById('authError').textContent = error.message;
 }
 
+function _openChangePasswordModal() {
+  _passwordModalMode = 'change';
+  document.getElementById('newPasswordTitle').textContent = 'Change Password';
+  document.getElementById('newPasswordSubtitle').textContent = 'Enter a new password for your account.';
+  document.getElementById('newPasswordCancelWrap').style.display = '';
+  document.getElementById('newPasswordInput').value = '';
+  document.getElementById('newPasswordConfirm').value = '';
+  document.getElementById('newPasswordError').textContent = '';
+  document.getElementById('userDropdown').classList.remove('open');
+  document.getElementById('newPasswordModal').classList.add('open');
+}
+
+function _closeChangePasswordModal() {
+  document.getElementById('newPasswordModal').classList.remove('open');
+  document.getElementById('newPasswordCancelWrap').style.display = 'none';
+  _passwordModalMode = 'recovery';
+}
+
 async function _authSignOut() {
   _toggleUserMenu();
   await _supa.auth.signOut();
@@ -126,15 +151,21 @@ async function _authSetNewPassword() {
     err.textContent = error.message;
     btn.disabled = false; btn.textContent = 'Update Password';
   } else {
-    _passwordRecoveryMode = false;
     document.getElementById('newPasswordModal').classList.remove('open');
-    // Always run init after password reset — _authAppReady may already be set
-    // from the SIGNED_IN event but init was skipped due to recovery mode
-    _currentUser = (await _supa.auth.getUser()).data.user;
-    _updateUserUI(_currentUser);
-    _authAppReady = true;
-    if (_mapLoadFired) _initAppAfterAuth();
-    showToast('Password updated successfully ✓', 'success');
+    document.getElementById('newPasswordCancelWrap').style.display = 'none';
+    if (_passwordModalMode === 'change') {
+      // Already logged in — just show success toast
+      showToast('Password updated successfully ✓', 'success');
+    } else {
+      // Recovery or invite — need to init app
+      _passwordRecoveryMode = false;
+      _passwordModalMode = 'recovery';
+      _currentUser = (await _supa.auth.getUser()).data.user;
+      _updateUserUI(_currentUser);
+      _authAppReady = true;
+      if (_mapLoadFired) _initAppAfterAuth();
+      showToast('Password set successfully ✓', 'success');
+    }
   }
 }
 
@@ -210,6 +241,20 @@ _supa.auth.onAuthStateChange(async (event, session) => {
     document.getElementById('newPasswordError').textContent = '';
     document.querySelectorAll('#authModal input').forEach(el => { el.disabled = true; el.value = ''; });
     return; // don't init app until password is set
+  }
+
+  // Invited user just clicked their invite link — prompt them to set a password
+  if (event === 'SIGNED_IN' && _passwordModalMode === 'invite') {
+    _passwordModalMode = 'invite';
+    document.getElementById('authModal').classList.remove('open');
+    document.getElementById('newPasswordTitle').textContent = 'Welcome! Set Your Password';
+    document.getElementById('newPasswordSubtitle').textContent = 'Please set a password to secure your account.';
+    document.getElementById('newPasswordCancelWrap').style.display = 'none';
+    document.getElementById('newPasswordInput').value = '';
+    document.getElementById('newPasswordConfirm').value = '';
+    document.getElementById('newPasswordError').textContent = '';
+    document.getElementById('newPasswordModal').classList.add('open');
+    return;
   }
 
   if (_currentUser) {
