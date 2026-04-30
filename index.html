@@ -387,7 +387,7 @@
   .auth-google-btn{width:100%;padding:11px;background:#fff;color:#3c4043;border:1px solid var(--border);border-radius:24px;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:background 0.15s,box-shadow 0.15s;}
   .auth-google-btn:hover{background:#f8f9fa;box-shadow:0 1px 4px rgba(0,0,0,0.12);}
   /* LANDING OVERLAY */
-  #landingOverlay{position:fixed;top:64px;left:0;right:0;bottom:0;z-index:1000;background:rgba(10,18,35,0.52);overflow-y:auto;display:none;}
+  #landingOverlay{position:fixed;top:64px;left:420px;right:0;bottom:0;z-index:1000;background:rgba(10,18,35,0.52);overflow-y:auto;display:none;}
   #landingOverlay.visible{display:block;}
   .lv-hero{padding:32px 24px 16px;display:flex;justify-content:center;}
   .lv-hero-card{background:rgba(255,255,255,0.97);border-radius:20px;padding:32px 36px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,0.35);}
@@ -414,10 +414,11 @@
   .lv-card-info h3{font-size:11px;font-weight:700;color:#1a2332;margin-bottom:5px;}
   .lv-card-info p{font-size:11px;color:#6b7d95;line-height:1.6;}
   .lv-card-info a{color:#2c5282;font-weight:600;text-decoration:none;}
-  .lv-footer{padding:12px 24px 20px;display:flex;justify-content:center;gap:16px;flex-wrap:wrap;}
-  .lv-footer a{font-size:11px;color:rgba(255,255,255,0.45);text-decoration:none;}
-  .lv-footer a:hover{color:rgba(255,255,255,0.8);}
-  .lv-footer .sep{color:rgba(255,255,255,0.25);}
+  .lv-footer{padding:10px 24px 20px;display:flex;justify-content:center;}
+  .lv-footer-pill{background:rgba(15,23,42,0.65);border-radius:20px;padding:7px 20px;display:flex;gap:14px;align-items:center;}
+  .lv-footer-pill a{font-size:11px;color:rgba(255,255,255,0.7);text-decoration:none;}
+  .lv-footer-pill a:hover{color:#fff;}
+  .lv-footer-pill .sep{color:rgba(255,255,255,0.25);font-size:11px;}
   /* User menu in header */
   .user-menu-wrap{position:relative;}
   .user-menu-btn{height:36px;padding:0 12px;border-radius:20px;border:1px solid var(--border);background:var(--panel2);font-family:var(--font);font-size:12px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.15s;}
@@ -718,13 +719,28 @@
     </div>
   </div>
   <footer class="lv-footer">
-    <a href="/privacy.html">Privacy Policy</a><span class="sep"> · </span><a href="/terms.html">Terms of Service</a><span class="sep"> · </span><a href="mailto:landvaluator@gmail.com">landvaluator@gmail.com</a>
+    <div class="lv-footer-pill">
+      <a href="/privacy.html">Privacy Policy</a>
+      <span class="sep">·</span>
+      <a href="/terms.html">Terms of Service</a>
+      <span class="sep">·</span>
+      <a href="mailto:landvaluator@gmail.com">landvaluator@gmail.com</a>
+    </div>
   </footer>
 </div>
 
 <!-- Auth Modal -->
 <div class="modal-overlay" id="authModal" style="top:64px;backdrop-filter:blur(6px);background:rgba(0,0,0,0.75);">
   <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:20px;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" width="34" height="34" style="flex-shrink:0;">
+        <polygon points="22,2 42,22 22,42 2,22" fill="#1a2332"/>
+        <polygon points="22,5 39,22 22,39 5,22" fill="none" stroke="#2c5282" stroke-width="3.5"/>
+        <polygon points="22,5 39,22 22,39 5,22" fill="none" stroke="#a8c4e0" stroke-width="0.75"/>
+        <text x="22" y="29" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="19" font-weight="800" fill="#ffffff" letter-spacing="-0.04em">LV</text>
+      </svg>
+      <span style="font-size:24px;font-weight:700;color:#1a2332;letter-spacing:0.03em;line-height:1;">Land<span style="color:#2c5282;">Valuator</span></span>
+    </div>
     <div class="auth-tabs">
       <button class="auth-tab active" id="authTabLogin" onclick="_authSwitchTab('login')">Sign In</button>
       <button class="auth-tab" id="authTabSignup" onclick="_authSwitchTab('signup')">Create Account</button>
