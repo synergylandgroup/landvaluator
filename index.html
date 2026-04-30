@@ -389,48 +389,35 @@
   /* LANDING OVERLAY */
   #landingOverlay{position:fixed;top:64px;left:0;right:0;bottom:0;z-index:1000;background:rgba(10,18,35,0.52);overflow-y:auto;display:none;}
   #landingOverlay.visible{display:block;}
-  .lv-nav{background:rgba(26,35,50,0.97);padding:0 2rem;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
-  .lv-nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
-  .lv-nav-brand{color:#fff;font-size:20px;font-weight:700;letter-spacing:0.02em;}
-  .lv-nav-brand em{color:#a8c4e0;font-style:normal;}
-  .lv-nav-actions{display:flex;align-items:center;gap:16px;}
-  .lv-nav-link{color:#a8c4e0;font-size:13px;text-decoration:none;}
-  .lv-nav-link:hover{color:#fff;}
-  .lv-nav-signin{background:#5b7fa6;color:#fff;border:none;border-radius:20px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);transition:background 0.15s;}
-  .lv-nav-signin:hover{background:#4a6e93;}
-  .lv-hero{padding:52px 24px 44px;display:flex;justify-content:center;}
-  .lv-hero-inner{max-width:680px;width:100%;display:grid;grid-template-columns:1fr 180px;gap:24px;align-items:start;}
-  .lv-hero-card{background:rgba(255,255,255,0.97);border-radius:16px;padding:36px 40px;box-shadow:0 8px 48px rgba(0,0,0,0.28);}
-  .lv-hero-tag{font-size:11px;font-weight:700;color:#5b7fa6;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;}
-  .lv-hero-card h1{font-size:26px;font-weight:800;color:#1a2332;line-height:1.25;margin-bottom:16px;}
-  .lv-hero-desc{font-size:14px;color:#4a5568;line-height:1.75;margin-bottom:28px;}
-  .lv-hero-signin{background:#2c5282;color:#fff;border:none;border-radius:24px;padding:12px 28px;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);transition:background 0.15s;}
+  .lv-hero{padding:32px 24px 16px;display:flex;justify-content:center;}
+  .lv-hero-card{background:rgba(255,255,255,0.97);border-radius:20px;padding:32px 36px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,0.35);}
+  .lv-hero-tag{font-size:10px;font-weight:700;color:#5b7fa6;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;}
+  .lv-hero-card h1{font-size:22px;font-weight:800;color:#1a2332;line-height:1.25;margin-bottom:12px;}
+  .lv-hero-desc{font-size:12px;color:#6b7d95;line-height:1.7;margin-bottom:20px;}
+  .lv-hero-signin{width:100%;padding:12px;background:#2c5282;color:#fff;border:none;border-radius:24px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;transition:background 0.15s;margin-bottom:8px;}
   .lv-hero-signin:hover{background:#1e3a5f;}
-  .lv-invite-note{background:#edf2f8;border-left:3px solid #5b7fa6;border-radius:0 8px 8px 0;padding:12px 16px;margin-top:20px;}
-  .lv-invite-note p{font-size:12px;color:#2c5282;line-height:1.5;}
+  .lv-google-land-btn{width:100%;padding:10px;background:#fff;color:#3c4043;border:1px solid #dde1e9;border-radius:24px;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background 0.15s;margin-bottom:16px;}
+  .lv-google-land-btn:hover{background:#f8f9fa;}
+  .lv-invite-note{background:#edf2f8;border-left:3px solid #5b7fa6;border-radius:0 6px 6px 0;padding:10px 14px;}
+  .lv-invite-note p{font-size:11px;color:#2c5282;line-height:1.5;}
   .lv-invite-note a{color:#2c5282;font-weight:600;text-decoration:none;}
-  .lv-stat-card{background:#1a2332;border-radius:12px;padding:20px;color:#fff;text-align:center;box-shadow:0 8px 48px rgba(0,0,0,0.28);}
-  .lv-stat-num{font-size:26px;font-weight:600;color:#a8c4e0;}
-  .lv-stat-lbl{font-size:11px;color:#6b8aaa;margin-top:4px;line-height:1.4;}
-  .lv-stat-sep{height:1px;background:#2c3e55;margin:14px 0;}
-  .lv-steps{background:rgba(255,255,255,0.97);border-top:1px solid #dde1e9;padding:40px 24px;}
-  .lv-steps-inner{max-width:680px;margin:0 auto;}
-  .lv-steps-label{font-size:11px;font-weight:700;color:#6b7d95;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:24px;}
-  .lv-steps-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
-  .lv-step-num{width:28px;height:28px;border-radius:50%;background:#edf2f8;color:#2c5282;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
-  .lv-step h4{font-size:13px;font-weight:700;color:#1a2332;margin-bottom:6px;}
-  .lv-step p{font-size:12px;color:#6b7d95;line-height:1.6;}
-  .lv-cards{background:rgba(246,247,249,0.98);border-top:1px solid #dde1e9;padding:32px 24px;}
-  .lv-cards-inner{max-width:680px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-  .lv-card{background:#fff;border:1px solid #dde1e9;border-radius:12px;padding:20px 24px;}
-  .lv-card h3{font-size:13px;font-weight:700;color:#1a2332;margin-bottom:8px;}
-  .lv-card p{font-size:13px;color:#6b7d95;line-height:1.6;}
-  .lv-card a{color:#2c5282;font-weight:600;text-decoration:none;}
-  .lv-footer{background:rgba(26,35,50,0.97);padding:24px;text-align:center;}
-  .lv-footer p{font-size:12px;color:#6b8aaa;line-height:2;}
-  .lv-footer a{color:#a8c4e0;text-decoration:none;}
-  .lv-footer a:hover{color:#fff;}
-  .lv-footer .sep{margin:0 8px;color:#2c3e55;}
+  .lv-steps{padding:12px 24px;display:flex;justify-content:center;}
+  .lv-steps-card{background:rgba(255,255,255,0.92);border-radius:16px;padding:20px 28px;width:100%;max-width:480px;box-shadow:0 8px 32px rgba(0,0,0,0.2);}
+  .lv-steps-label{font-size:10px;font-weight:700;color:#6b7d95;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:16px;}
+  .lv-steps-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  .lv-step-num{width:22px;height:22px;border-radius:50%;background:#edf2f8;color:#2c5282;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:6px;}
+  .lv-step h4{font-size:11px;font-weight:700;color:#1a2332;margin-bottom:3px;}
+  .lv-step p{font-size:10px;color:#6b7d95;line-height:1.55;}
+  .lv-cards{padding:12px 24px 16px;display:flex;justify-content:center;}
+  .lv-cards-inner{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:480px;}
+  .lv-card-info{background:rgba(255,255,255,0.88);border-radius:12px;padding:16px 18px;box-shadow:0 4px 16px rgba(0,0,0,0.15);}
+  .lv-card-info h3{font-size:11px;font-weight:700;color:#1a2332;margin-bottom:5px;}
+  .lv-card-info p{font-size:11px;color:#6b7d95;line-height:1.6;}
+  .lv-card-info a{color:#2c5282;font-weight:600;text-decoration:none;}
+  .lv-footer{padding:12px 24px 20px;display:flex;justify-content:center;gap:16px;flex-wrap:wrap;}
+  .lv-footer a{font-size:11px;color:rgba(255,255,255,0.45);text-decoration:none;}
+  .lv-footer a:hover{color:rgba(255,255,255,0.8);}
+  .lv-footer .sep{color:rgba(255,255,255,0.25);}
   /* User menu in header */
   .user-menu-wrap{position:relative;}
   .user-menu-btn{height:36px;padding:0 12px;border-radius:20px;border:1px solid var(--border);background:var(--panel2);font-family:var(--font);font-size:12px;font-weight:600;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.15s;}
@@ -701,30 +688,20 @@
 <!-- Landing Overlay -->
 <div id="landingOverlay">
   <div class="lv-hero">
-    <div class="lv-hero-inner">
-      <div class="lv-hero-card">
-        <p class="lv-hero-tag">For serious land investors</p>
-        <h1>Map your zones.<br>Price your offers.<br>Mail smarter.</h1>
-        <p class="lv-hero-desc">Draw polygon pricing zones on a county map, import that county's dataset from Land Insights, and let LandValuator automatically assign every parcel to the right zone — then sync pricing back to Google Sheets for your mailing campaigns.</p>
-        <button class="lv-hero-signin" onclick="_openAuthFromLanding()">Sign in to your account</button>
-        <div class="lv-invite-note">
-          <p>LandValuator is currently invite-only. <a href="mailto:landvaluator@gmail.com">Request access →</a></p>
-        </div>
-      </div>
-      <div class="lv-stat-card">
-        <div class="lv-stat-num">∞</div>
-        <div class="lv-stat-lbl">Counties supported</div>
-        <div class="lv-stat-sep"></div>
-        <div class="lv-stat-num" style="font-size:18px;">Auto</div>
-        <div class="lv-stat-lbl">Parcel zone assignment</div>
-        <div class="lv-stat-sep"></div>
-        <div class="lv-stat-num" style="font-size:18px;">Live</div>
-        <div class="lv-stat-lbl">Google Sheets sync</div>
-      </div>
+    <div class="lv-hero-card">
+      <p class="lv-hero-tag">For serious land investors</p>
+      <h1>Map your zones.<br>Price your offers.<br>Mail smarter.</h1>
+      <p class="lv-hero-desc">Draw polygon pricing zones on a county map, import that county's dataset from Land Insights, and let LandValuator automatically assign every parcel to the right zone — then sync pricing back to Google Sheets for your mailing campaigns.</p>
+      <button class="lv-hero-signin" onclick="_openAuthFromLanding()">Sign in to your account</button>
+      <button class="lv-google-land-btn" onclick="_authLoginGoogle()">
+        <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 6.294C4.672 4.169 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+        Continue with Google
+      </button>
+      <div class="lv-invite-note"><p>LandValuator is currently invite-only. <a href="mailto:landvaluator@gmail.com">Request access →</a></p></div>
     </div>
   </div>
   <div class="lv-steps">
-    <div class="lv-steps-inner">
+    <div class="lv-steps-card">
       <p class="lv-steps-label">How it works</p>
       <div class="lv-steps-row">
         <div class="lv-step"><div class="lv-step-num">1</div><h4>Draw zones</h4><p>Draw polygon pricing zones directly on the county map.</p></div>
@@ -736,14 +713,13 @@
   </div>
   <div class="lv-cards">
     <div class="lv-cards-inner">
-      <div class="lv-card"><h3>Built for Land Insights users</h3><p>LandValuator reads directly from your existing Land Insights export spreadsheet. No reformatting, creating formulas, or data entry required.</p></div>
-      <div class="lv-card"><h3>Invite-only access</h3><p>LandValuator is currently invite only. To request an invitation, email <a href="mailto:landvaluator@gmail.com">landvaluator@gmail.com</a>.</p></div>
+      <div class="lv-card-info"><h3>Built for Land Insights users</h3><p>LandValuator reads directly from your existing Land Insights export spreadsheet. No reformatting, creating formulas, or data entry required.</p></div>
+      <div class="lv-card-info"><h3>Invite-only access</h3><p>LandValuator is currently invite only. To request an invitation, email <a href="mailto:landvaluator@gmail.com">landvaluator@gmail.com</a>.</p></div>
     </div>
   </div>
-  <div class="lv-footer">
-    <p>© 2026 LandValuator®</p>
-    <p><a href="/privacy.html">Privacy Policy</a><span class="sep"> · </span><a href="/terms.html">Terms of Service</a><span class="sep"> · </span><a href="mailto:landvaluator@gmail.com">landvaluator@gmail.com</a></p>
-  </div>
+  <footer class="lv-footer">
+    <a href="/privacy.html">Privacy Policy</a><span class="sep"> · </span><a href="/terms.html">Terms of Service</a><span class="sep"> · </span><a href="mailto:landvaluator@gmail.com">landvaluator@gmail.com</a>
+  </footer>
 </div>
 
 <!-- Auth Modal -->
