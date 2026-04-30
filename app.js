@@ -88,6 +88,17 @@ async function _authLoginGoogle() {
   if (error) document.getElementById('authError').textContent = error.message;
 }
 
+function _showLanding() {
+  document.getElementById('landingOverlay').classList.add('visible');
+}
+function _hideLanding() {
+  document.getElementById('landingOverlay').classList.remove('visible');
+}
+function _openAuthFromLanding() {
+  document.getElementById('authModal').classList.add('open');
+  document.querySelectorAll('#authModal input').forEach(el => { el.disabled = false; });
+}
+
 function _openChangePasswordModal() {
   _passwordModalMode = 'change';
   document.getElementById('newPasswordTitle').textContent = 'Change Password';
@@ -277,9 +288,10 @@ _supa.auth.onAuthStateChange(async (event, session) => {
   }
 
   if (_currentUser) {
-    // User just logged in — hide auth modal, show app
+    // User just logged in — hide auth modal and landing, show app
     document.getElementById('authModal').classList.remove('open');
     document.getElementById('newPasswordModal').classList.remove('open');
+    _hideLanding();
     document.getElementById('authError').textContent = '';
     // Disable auth inputs so browser stops offering password autofill
     document.querySelectorAll('#authModal input').forEach(el => { el.disabled = true; el.value = ''; });
@@ -290,10 +302,10 @@ _supa.auth.onAuthStateChange(async (event, session) => {
       if (_mapLoadFired) _initAppAfterAuth();
     }
   } else {
-    // User logged out — show auth modal, hide user menu
-    document.getElementById('authModal').classList.add('open');
-    // Re-enable auth inputs
+    // User logged out — show landing page
+    document.getElementById('authModal').classList.remove('open');
     document.querySelectorAll('#authModal input').forEach(el => { el.disabled = false; });
+    _showLanding();
     // Reset auth guard so the next login triggers a fresh _initAppAfterAuth()
     _authAppReady = false;
     // Clear app state
@@ -3240,9 +3252,8 @@ map.on('load', () => {
       _initAppAfterAuth();
     }
   } else {
-    // Show auth modal while we wait
-    document.getElementById('authModal').classList.add('open');
-    // Safety net timer still needed for _mapInitComplete
+    // Show landing page while we wait
+    _showLanding();
     setTimeout(() => { _mapInitComplete = true; }, 600);
   }
 
