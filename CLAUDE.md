@@ -528,6 +528,8 @@ Bound to each county's Google Spreadsheet. Key functions:
 | 6 | **Email confirmation** | Currently OFF. Enable once SMTP is configured for production. | — |
 | 7 | **Sheet license verification** | New `verify-sheet.js` Netlify function checks if a sheet ID is registered in any user's `sheet_configs` in Supabase. Apps Script calls this endpoint at the start of each key function (populateScrubbed, refreshOfferPrices, syncBlindOfferTab, etc.). Unauthorized copies (new sheet ID not in Supabase) are blocked. Result cached per session to minimize delay. Existing connected sheets need manual script update; future sheets get it via template. | ~1-2 hrs |
 | 8 | **Subscription billing** | Stripe integration. No monthly fee — 2.9% + 30¢ per transaction. | When ready to monetize |
+| 9 | **Move Sheets template to landvaluator@gmail.com** | Template currently lives in a different Google account. Share it with landvaluator@gmail.com and add to that Drive so it doesn't get accidentally deleted. No code changes needed. | 5 min |
+| 10 | **Hide toolbar buttons before login** | Tooltip, save, and load zone buttons in top-right header are currently clickable before signing in. Already coded locally — push with next batch. | Ready to push |
 
 ---
 
