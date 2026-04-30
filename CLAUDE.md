@@ -520,12 +520,13 @@ Bound to each county's Google Spreadsheet. Key functions:
 
 | # | Feature | Notes | Est. |
 |---|---------|-------|------|
-| 1 | **Google OAuth login** | "Sign in with Google" as additional auth option. Supabase has built-in support. Add button to auth modal. | ~1-2 hrs |
+| 1 | **Google OAuth login** | ✅ Complete. Google OAuth enabled via Supabase, "Continue with Google" button on auth modal and landing page. | Done |
 | 2 | **Auto-refresh pricing via Netlify function** | Port `refreshOfferPrices()` into `sheets-refresh-prices.js`. Clean up `doPost`, `sheets-trigger-refresh.js`, and `GAS_REFRESH_URL` env var. Manual "6. Refresh" stays as fallback. | ~2-3 hrs |
 | 3 | **Unassigned zone persistence** | Show unassigned zone as soon as first zone is drawn (before sheet connected). County pill and zone counts show dash when no sheet connected. Unassigned stays visible on disconnect. Pricing assignable before sheet connection. Requires Supabase schema change — `unassigned_zones` table currently one entry per user, needs per-county storage. | ~2-3 hrs |
 | 4 | **KML parcel boundary outlines** | Viable if LandInsights can export all parcels in one KML per county (single-file-per-parcel is not viable). KML contains APN, address, owner, acreage. Would match to property records by APN and show clickable parcel outlines on map. Ray is checking with LandInsights. | ~1-2 hrs if viable |
 | 5 | **Onboarding video** | Short screen recording showing how to connect Google Sheets. Embed link in connect modal. Content creation, no code. | — |
 | 6 | **Email confirmation** | Currently OFF. Enable once SMTP is configured for production. | — |
+| 7 | **Sheet license verification** | New `verify-sheet.js` Netlify function checks if a sheet ID is registered in any user's `sheet_configs` in Supabase. Apps Script calls this endpoint at the start of each key function (populateScrubbed, refreshOfferPrices, syncBlindOfferTab, etc.). Unauthorized copies (new sheet ID not in Supabase) are blocked. Result cached per session to minimize delay. Existing connected sheets need manual script update; future sheets get it via template. | ~1-2 hrs |
 | 8 | **Subscription billing** | Stripe integration. No monthly fee — 2.9% + 30¢ per transaction. | When ready to monetize |
 
 ---
