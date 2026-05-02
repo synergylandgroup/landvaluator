@@ -45,7 +45,8 @@
   .btn-ghost:hover{border-color:var(--accent);color:var(--accent);background:#fff;}
 
   /* SIDEBAR */
-  aside{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:transform 0.3s;}
+  aside{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:transform 0.3s;position:relative;}
+  #sidebarOverlay{position:absolute;inset:0;z-index:200;display:none;cursor:not-allowed;}
   .polygons-list{flex:1;overflow-y:auto;overflow-x:visible;padding:4px 0;}
   .sidebar-section{padding:11px 15px;border-bottom:1px solid var(--border);flex-shrink:0;}
   .section-label{font-family:var(--font);font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
@@ -463,6 +464,7 @@
         <button class="user-dropdown-item danger" onclick="_authSignOut()">Sign Out</button>
       </div>
     </div>
+    <div id="headerToolbarBtns" style="display:none;align-items:center;gap:0;">
     <div class="tip-wrap" id="tooltipToggleWrap">
       <button class="btn-icon-toolbar active" id="tooltipToggleBtn" onclick="toggleTooltips()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -481,6 +483,7 @@
       </button>
       <span class="tip-box tip-right" style="white-space:normal;width:200px;">Upload zones from a JSON file restoring all data.</span>
     </div>
+    </div><!-- end headerToolbarBtns -->
     <input type="file" id="zoneFileInput" accept=".json" style="display:none" onchange="importZonesFile(event)">
   </div>
 </header>
@@ -542,6 +545,7 @@
   <div class="polygons-list" id="polygonsList">
     <div class="empty-state">No zones yet.<br>Select a state &amp; county,<br>then draw on the map.</div>
   </div>
+  <div id="sidebarOverlay"></div>
 </aside>
 
 <div class="map-wrap">

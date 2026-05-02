@@ -90,9 +90,11 @@ async function _authLoginGoogle() {
 
 function _showLanding() {
   document.getElementById('landingOverlay').classList.add('visible');
+  document.getElementById('sidebarOverlay').style.display = 'block';
 }
 function _hideLanding() {
   document.getElementById('landingOverlay').classList.remove('visible');
+  document.getElementById('sidebarOverlay').style.display = 'none';
 }
 function _openAuthFromLanding() {
   document.getElementById('authModal').classList.add('open');
@@ -211,8 +213,10 @@ function _updateUserUI(user) {
       ? `<strong style="display:block;color:var(--text)">${fullName}</strong>${user.email}`
       : user.email;
     wrap.style.display = '';
+    document.getElementById('headerToolbarBtns').style.display = 'flex';
   } else {
     wrap.style.display = 'none';
+    document.getElementById('headerToolbarBtns').style.display = 'none';
   }
 }
 
