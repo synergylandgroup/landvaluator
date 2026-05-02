@@ -307,7 +307,7 @@ The modal has two states:
 - Disconnect & re-enter URL link
 - Cancel / Refresh & Load buttons
 
-**Template URL:** `https://docs.google.com/spreadsheets/d/1HpTfSOxSMOPBzw8dZ0WD26Oo8kdMBNC5Rell0uucejs/copy`
+**Template URL:** `https://docs.google.com/spreadsheets/d/16__sD9fs10LkysRbZCWILkFFo8KUffUWdBqr9k_ooOw/copy`
 
 **Service account email** is obfuscated in app.js as a char code array decoded at runtime. Current value: `landvaluator-sheets@landvaluator.iam.gserviceaccount.com`
 
