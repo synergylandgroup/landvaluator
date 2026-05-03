@@ -1273,6 +1273,16 @@ function createPolygonAuto(pts, color) {
     color, points: pts, description: '', labelMarker: null, handles: [],
     _isRect: false, _bounds: null,
   };
+  // Count properties already in memory that fall within this zone
+  poly.propCount = properties.filter(p =>
+    (p.stateAbbr || p.state || '').toUpperCase() === stateAbbr &&
+    (p.countyName || p.county || '').toLowerCase().replace(' county','').trim() === countyName.toLowerCase().trim() &&
+    pointInPolygon(p.lat, p.lng, pts)
+  ).length;
+  // Assign zone letter to matched properties
+  properties.forEach(p => {
+    if (pointInPolygon(p.lat, p.lng, pts)) p.zone = letter;
+  });
   polygons.push(poly);
   _addZoneLayers(poly);
   _addZoneLabel(poly);
