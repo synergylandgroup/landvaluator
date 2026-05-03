@@ -1919,10 +1919,11 @@ function renderPolygonList() {
           _uPoly.propCount = _unassignedCount;
         }
 
-        const _countDisplay = _hasSheet ? (_unassignedCount || 0) : '—';
+        const _displayCount = _hasSheet ? (_unassignedCount ?? 0) : 0;
+        const _countDisplay = _displayCount;
         const _countTip = _hasSheet
-          ? `${_unassignedCount || 0} unassigned propert${(_unassignedCount||0)===1?'y':'ies'} in ${countyName} County`
-          : 'Connect a sheet to see unassigned property count';
+          ? `${_displayCount} unassigned propert${_displayCount===1?'y':'ies'}`
+          : '0 unassigned properties';
 
         const uDiv = document.createElement('div');
         uDiv.className = 'polygon-item';
