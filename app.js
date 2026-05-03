@@ -436,19 +436,32 @@ const DB = {
   },
 
   // -- Unassigned Zone Pricing -------------------------
-  async saveUnassigned(entries) {
+  async saveUnassigned(entriesMap) {
+    // entriesMap = { "MI|Newaygo": { pricingTiers, description }, ... }
     if (!_currentUser) return;
     try {
-      await _supa.from('unassigned_zones').upsert({ user_id: _currentUser.id, data: entries, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+      await _supa.from('unassigned_zones').upsert({ user_id: _currentUser.id, data: entriesMap, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
     } catch(e) { console.warn('DB.saveUnassigned error:', e); }
   },
 
   async loadUnassigned() {
-    if (!_currentUser) return [];
+    if (!_currentUser) return {};
     try {
       const { data } = await _supa.from('unassigned_zones').select('data').eq('user_id', _currentUser.id).maybeSingle();
-      return data?.data || [];
-    } catch(e) { return []; }
+      const raw = data?.data;
+      if (!raw) return {};
+      // Migration: old format was an array, new format is a keyed object
+      if (Array.isArray(raw)) {
+        const migrated = {};
+        raw.forEach(u => {
+          if (u.stateAbbr && u.countyName) {
+            migrated[`${u.stateAbbr}|${u.countyName}`] = { pricingTiers: u.pricingTiers || [], description: u.description || '' };
+          }
+        });
+        return migrated;
+      }
+      return raw;
+    } catch(e) { return {}; }
   },
 };
 
@@ -1872,26 +1885,34 @@ function renderPolygonList() {
       });
 
       // Unassigned properties row — shown when properties loaded but some have no zone
-      const _unassignedCount = properties.filter(p => {
-        const pc = (p.county||'').toLowerCase().replace(' county','').trim();
-        const cc = countyName.toLowerCase().trim();
-        const sc = (p.state||'').toUpperCase();
-        return (pc === cc && sc === stateAbbr) && !p.zone;
-      }).length;
-      if (_unassignedCount > 0) {
+      // Show unassigned row whenever real zones exist for this county
+      if (cPolys.length > 0) {
+        const _hasSheet = !!(_getSheetConfig(stateAbbr, countyName));
+        const _unassignedCount = _hasSheet ? properties.filter(p => {
+          const pc = (p.county||'').toLowerCase().replace(' county','').trim();
+          const cc = countyName.toLowerCase().trim();
+          const sc = (p.state||'').toUpperCase();
+          return (pc === cc && sc === stateAbbr) && !p.zone;
+        }).length : null;
+
         // Get or create a virtual polygon for unassigned properties pricing
         const _uId = `__unassigned__${stateAbbr}|${countyName}`;
         let _uPoly = polygons.find(p => p.id === _uId);
         if (!_uPoly) {
           _uPoly = {
             id: _uId, letter: '?', name: 'Unassigned', color: '#a0aec0',
-            stateAbbr, countyName, points: [], propCount: _unassignedCount,
+            stateAbbr, countyName, points: [], propCount: _unassignedCount || 0,
             pricingTiers: [], description: '', _isUnassigned: true,
           };
           polygons.push(_uPoly);
-        } else {
+        } else if (_hasSheet) {
           _uPoly.propCount = _unassignedCount;
         }
+
+        const _countDisplay = _hasSheet ? (_unassignedCount || 0) : '—';
+        const _countTip = _hasSheet
+          ? `${_unassignedCount || 0} unassigned propert${(_unassignedCount||0)===1?'y':'ies'} in ${countyName} County`
+          : 'Connect a sheet to see unassigned property count';
 
         const uDiv = document.createElement('div');
         uDiv.className = 'polygon-item';
@@ -1902,7 +1923,7 @@ function renderPolygonList() {
             <div class="poly-name" style="color:#718096">UNASSIGNED</div>
             <div class="poly-count">${countyName} County, ${stateAbbr}</div>
           </div>
-          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:auto"><span class="tip-wrap"><span class="zone-prop-count tip-anchor" style="background:#e8ebef;color:#718096;cursor:default">${_unassignedCount}</span><span class="tip-box tip-sidebar">${_unassignedCount} unassigned propert${_unassignedCount===1?'y':'ies'} in ${countyName} County</span></span>
+          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:auto"><span class="tip-wrap"><span class="zone-prop-count tip-anchor" style="background:#e8ebef;color:#718096;cursor:default">${_countDisplay}</span><span class="tip-box tip-sidebar">${_countTip}</span></span>
           <span class="tip-wrap"><button class="poly-btn notes-btn" data-uid="${_uId}">⚙</button><span class="tip-box tip-sidebar">Open pricing panel for Unassigned properties</span></span>
           <span class="tip-wrap"><button class="poly-btn delete-btn" data-uid="${_uId}">✕</button><span class="tip-box tip-sidebar">Remove Unassigned pricing data</span></span></div>
         `;
@@ -2270,11 +2291,12 @@ function _polyToJSON(p) {
 }
 async function persistZones() {
   await DB.saveZones(polygons.filter(p => !p._isUnassigned).map(_polyToJSON));
-  // Save unassigned virtual polygons separately
-  const unassignedEntries = polygons
-    .filter(p => p._isUnassigned)
-    .map(p => ({ id: p.id, stateAbbr: p.stateAbbr, countyName: p.countyName, pricingTiers: p.pricingTiers || [], description: p.description || '' }));
-  await DB.saveUnassigned(unassignedEntries);
+  // Save unassigned pricing per county
+  const unassignedMap = {};
+  polygons.filter(p => p._isUnassigned).forEach(p => {
+    unassignedMap[`${p.stateAbbr}|${p.countyName}`] = { pricingTiers: p.pricingTiers || [], description: p.description || '' };
+  });
+  await DB.saveUnassigned(unassignedMap);
 }
 async function _loadAllCountyBoundaries(cacheOnly) {
   // Find all unique state+county combos that have zones
@@ -2318,26 +2340,26 @@ async function restoreZones() {
   try { _restoreAllZoneLayers(); } catch(e) { console.warn('restoreZoneLayers error:', e); }
   setTimeout(() => { try { _loadAllCountyBoundaries(false); } catch(e) { console.warn('loadAllCountyBoundaries error:', e); } }, 500);
 
-  // Restore unassigned virtual polygons (pricing data only, no map geometry)
+  // Restore unassigned pricing per county
   try {
-    const unassigned = await DB.loadUnassigned();
-    if (unassigned && unassigned.length) {
-      unassigned.forEach(u => {
-        const existing = polygons.find(p => p.id === u.id);
-        if (!existing) {
-          polygons.push({
-            id: u.id, letter: '?', name: 'Unassigned', color: '#a0aec0',
-            stateAbbr: u.stateAbbr, countyName: u.countyName,
-            points: [], propCount: 0, pricingTiers: u.pricingTiers || [],
-            description: u.description || '', _isUnassigned: true,
-            labelMarker: null, handles: [],
-          });
-        } else {
-          existing.pricingTiers = u.pricingTiers || [];
-          existing.description  = u.description  || '';
-        }
-      });
-    }
+    const unassigned = await DB.loadUnassigned(); // { "MI|Newaygo": { pricingTiers, description } }
+    Object.entries(unassigned).forEach(([key, data]) => {
+      const [stateAbbr, countyName] = key.split('|');
+      if (!stateAbbr || !countyName) return;
+      const id = `__unassigned__${key}`;
+      const existing = polygons.find(p => p.id === id);
+      if (!existing) {
+        polygons.push({
+          id, letter: '?', name: 'Unassigned', color: '#a0aec0',
+          stateAbbr, countyName, points: [], propCount: 0,
+          pricingTiers: data.pricingTiers || [], description: data.description || '',
+          _isUnassigned: true, labelMarker: null, handles: [],
+        });
+      } else {
+        existing.pricingTiers = data.pricingTiers || [];
+        existing.description  = data.description  || '';
+      }
+    });
   } catch(e) { console.error('restoreUnassigned error:', e); }
 }
 function _loadZone(d, skipLayers) {
@@ -2556,9 +2578,10 @@ function disconnectSheet() {
     (p.state || '').toUpperCase() === sa &&
     (p.county || '').toLowerCase().replace(' county','').trim() === cn.toLowerCase().trim()
   ));
-  // Remove virtual unassigned polygon for this county
+  // Keep unassigned polygon but reset propCount (no sheet = no count)
   const _uId = `__unassigned__${sa}|${cn}`;
-  polygons = polygons.filter(p => p.id !== _uId);
+  const _uPoly = polygons.find(p => p.id === _uId);
+  if (_uPoly) _uPoly.propCount = 0;
   // Reset propCount to 0 on all real zones for this county
   polygons.forEach(p => { if (p.stateAbbr === sa && p.countyName === cn) p.propCount = 0; });
   // Update stat counters
