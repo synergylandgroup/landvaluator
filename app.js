@@ -3218,9 +3218,7 @@ function _updateTooltipBtn(isOff) {
   if (btn) btn.classList.toggle('active', !isOff);
 }
 function _initTooltipToggle() {
-  const isOff = DB.loadUIState('tooltips_off', false);
-  if (isOff) document.body.classList.add('tooltips-off');
-  _updateTooltipBtn(isOff);
+  document.body.classList.remove('tooltips-off');
 }
 
 document.getElementById('sheetsModal').addEventListener('click', e => { if (e.target===e.currentTarget) closeSheetsModal(); });

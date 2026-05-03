@@ -8,6 +8,52 @@
 //  calculations. Falls back to standard Acreage if LI cell is blank.
 // ============================================================
 
+
+// ============================================================
+//  LICENSE VERIFICATION
+//  Checks once per 24 hours that this sheet is registered to
+//  a LandValuator account. Result cached in Script Properties.
+// ============================================================
+
+const LV_VERIFY_URL = 'https://landvaluator.app/.netlify/functions/verify-sheet';
+const LV_AUTH_KEY   = 'lv_auth_time';
+
+function _isAuthorized() {
+  const props = PropertiesService.getScriptProperties();
+  const lastCheck = Number(props.getProperty(LV_AUTH_KEY) || 0);
+  const hoursSince = (Date.now() - lastCheck) / 3600000;
+  if (hoursSince < 24) return true; // cached — skip network call
+
+  const sheetId = SpreadsheetApp.getActiveSpreadsheet().getId();
+  try {
+    const resp = UrlFetchApp.fetch(LV_VERIFY_URL, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ sheetId }),
+      muteHttpExceptions: true,
+    });
+    const result = JSON.parse(resp.getContentText());
+    if (result.authorized) {
+      props.setProperty(LV_AUTH_KEY, String(Date.now()));
+      return true;
+    }
+  } catch (e) {
+    // Network error — fail closed
+  }
+  return false;
+}
+
+function _requireAuth() {
+  if (_isAuthorized()) return true;
+  SpreadsheetApp.getUi().alert(
+    '⚠️ Not Authorized',
+    'This spreadsheet is not connected to a LandValuator account.\n\n' +
+    'To use these features, connect this sheet at landvaluator.app.',
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
+  return false;
+}
+
 //  Column name mappings
 //  All column lookups are name-based and resolved dynamically at runtime
 //  using the header row of each sheet. No column positions are hardcoded.
@@ -414,6 +460,7 @@ function toProperAddress(str) {
 
 /** STEP 1a: Show filter modal before loading data. */
 function populateScrubbed() {
+  if (!_requireAuth()) return;
   const ss       = SpreadsheetApp.getActiveSpreadsheet();
   const rawSheet = ss.getSheetByName('LI Raw Dataset');
   if (!rawSheet || rawSheet.getLastRow() <= 1) {
@@ -669,6 +716,7 @@ function highlightKeywords(spSheet, keywords, dataRows, ownerCol) {
 
 /** Remove all flagged (yellow) rows. */
 function removeFlaggedRows() {
+  if (!_requireAuth()) return;
   const ss      = SpreadsheetApp.getActiveSpreadsheet();
   const spSheet = ss.getSheetByName('Scrubbed and Priced');
   const lastRow = spSheet.getLastRow();
@@ -694,6 +742,7 @@ function removeFlaggedRows() {
 
 /** Remove all Low Seller IQ rows. */
 function removeLowSellerIQ() {
+  if (!_requireAuth()) return;
   const ss      = SpreadsheetApp.getActiveSpreadsheet();
   const spSheet = ss.getSheetByName('Scrubbed and Priced');
   const lastRow = spSheet.getLastRow();
@@ -718,6 +767,7 @@ function removeLowSellerIQ() {
 
 /** Sync Blind Offer Mail Ready ✉️ Tab. */
 function syncBlindOfferTab() {
+  if (!_requireAuth()) return;
   const ss         = SpreadsheetApp.getActiveSpreadsheet();
   const spSheet    = ss.getSheetByName('Scrubbed and Priced');
   const blindSheet = ss.getSheetByName('Blind Offer Mail Ready ✉️');
@@ -745,6 +795,7 @@ function syncBlindOfferTab() {
 
 /** Sync Range Offer Mail Ready ✉️ Tab. */
 function syncRangeOfferTab() {
+  if (!_requireAuth()) return;
   const ss         = SpreadsheetApp.getActiveSpreadsheet();
   const spSheet    = ss.getSheetByName('Scrubbed and Priced');
   const rangeSheet = ss.getSheetByName('Range Offer Mail Ready ✉️');
@@ -909,6 +960,7 @@ function applySheetFormatting_(sheet, numDataRows, numCols) {
 
 /** Show the Margin Reference Chart modal. */
 function showMarginReferenceChart() {
+  if (!_requireAuth()) return;
   const html = HtmlService.createHtmlOutput(getMarginChartHtml())
     .setWidth(1060)
     .setHeight(780);
@@ -1199,6 +1251,7 @@ window.addEventListener('load', () => { buildTierInputs(); buildLegend(); resize
  * URL structure: https://landvaluator.app/?state=XX&county=CountyName
  */
 function openCountyInApp() {
+  if (!_requireAuth()) return;
   const ss  = SpreadsheetApp.getActiveSpreadsheet();
   const ui  = SpreadsheetApp.getUi();
 
