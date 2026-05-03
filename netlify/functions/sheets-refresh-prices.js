@@ -168,8 +168,11 @@ async function readPricingSettings(sheetId, token) {
   const rangeLow  = data.length > 3 ? parseMult(data[3][11]) : 0;
   const rangeHigh = data.length > 4 ? parseMult(data[4][11]) : 0;
 
+  // If min/max columns weren't found, all tiers default to (0, 999999) which
+  // causes every tier to match every row. Fall back to DEFAULT_BLIND in that case.
+  const hasValidRanges = blindTiers.some(t => t.min > 0 || t.max < 999999);
   return {
-    blindTiers: blindTiers.length > 0 ? blindTiers.slice(0, 5) : DEFAULT_BLIND,
+    blindTiers: (blindTiers.length > 0 && hasValidRanges) ? blindTiers.slice(0, 5) : DEFAULT_BLIND,
     rangeTiers: rangeLow > 0 && rangeHigh > 0
       ? [{ mult: rangeLow }, { mult: rangeHigh }]
       : DEFAULT_RANGE,
