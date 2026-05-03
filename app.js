@@ -1659,9 +1659,12 @@ async function saveAndSyncZone() {
 
     showToast(p._isUnassigned ? `Unassigned Zone saved — pricing synced ✓` : `Zone ${p.letter} saved — ${assigned} assigned, pricing synced ✓`, 'success');
 
-    // Fire-and-forget: trigger refreshOfferPrices() in Apps Script
-    // Non-blocking — sync is already done; this just keeps the sheet up to date
-    fetch('/.netlify/functions/sheets-trigger-refresh', { method: 'POST' }).catch(() => {});
+    // Fire-and-forget: recalculate offer prices via Netlify (non-blocking)
+    fetch('/.netlify/functions/sheets-refresh-prices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheetId: cfg.sheetId, tiers: allTiers }),
+    }).catch(() => {});
   } catch(err) {
     showToast('Sync error: ' + err.message, 'error');
   }
@@ -1862,6 +1865,8 @@ function renderPolygonList() {
         `;
         div.querySelector('.notes-btn').addEventListener('click', e => { e.stopPropagation(); openZoneDescModal(p.id); });
         div.querySelector('.delete-btn').addEventListener('click', e => { e.stopPropagation(); deletePoly(p.id); });
+        div.querySelector('.poly-name').addEventListener('mouseenter', e => _ftip.show('Zoom map into Zone ' + p.letter, e.currentTarget));
+        div.querySelector('.poly-name').addEventListener('mouseleave', () => _ftip.hide());
         div.onclick = () => zoomToZoneAndCounty(p);
         polyDiv.appendChild(div);
       });
