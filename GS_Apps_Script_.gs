@@ -47,8 +47,8 @@ function _requireAuth() {
   if (_isAuthorized()) return true;
   SpreadsheetApp.getUi().alert(
     '⚠️ Not Authorized',
-    'This spreadsheet is not connected to a LandValuator account.\n\n' +
-    'To use these features, connect this sheet at landvaluator.app.',
+    'This spreadsheet isn\'t connected to a LandValuator account.\n\n' +
+    'To use these features, please download the official template from landvaluator.app.',
     SpreadsheetApp.getUi().ButtonSet.OK
   );
   return false;
