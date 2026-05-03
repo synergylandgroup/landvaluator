@@ -2730,50 +2730,8 @@ function _finishSheetConnect({ sa, cn, sheetConfig, sheetId, rawInput, sheetTitl
   }
 
   const _assigned = properties.filter(p => p.zone).length;
-  showToast('Connected: ' + cn + ' County — ' + properties.length + ' properties, ' + _assigned + ' assigned', 'success');
+  showToast('Connected: ' + cn + ' County — ' + properties.length + ' properties, ' + _assigned + ' assigned. Run "Load data" in the sheet, then Save & Sync a zone to push pricing.', 'success', 7000);
   closeSheetsModal();
-
-  // Fire-and-forget: write zone assignments + pricing to sheet, then refresh prices
-  (async () => {
-    try {
-      const _cnNorm2 = cn.toLowerCase().trim();
-      const assignments = properties
-        .filter(p => p.apn)
-        .map(p => ({ apn: p.apn, zone: p.zone || 'UNASSIGNED' }));
-
-      if (assignments.length) {
-        await fetch('/.netlify/functions/sheets-write-zones', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sheetId, sheetName: 'Scrubbed and Priced', colAPN: sheetConfig.colAPN || 'APN', assignments }),
-        });
-      }
-
-      const countyPolys2 = polygons.filter(p => p.stateAbbr === sa && (p.countyName||'').toLowerCase().trim() === _cnNorm2);
-      const allTiers = [];
-      const _sortZone = p => p._isUnassigned ? 'ZZZZZ' : (p.letter || '');
-      countyPolys2.slice().sort((a,b) => _sortZone(a).localeCompare(_sortZone(b))).forEach(poly => {
-        const zoneLabel = poly._isUnassigned ? 'UNASSIGNED' : poly.letter;
-        (poly.pricingTiers || [])
-          .filter(t => t.pricePerAcre !== '' && t.pricePerAcre !== undefined && t.pricePerAcre !== null)
-          .sort((a,b) => parseFloat(a.minAcres||0) - parseFloat(b.minAcres||0))
-          .forEach(t => allTiers.push({ zone: zoneLabel, minAcres: t.minAcres, maxAcres: t.maxAcres, pricePerAcre: t.pricePerAcre }));
-      });
-
-      if (allTiers.length) {
-        await fetch('/.netlify/functions/sheets-write-pricing', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sheetId, tiers: allTiers }),
-        });
-        fetch('/.netlify/functions/sheets-refresh-prices', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sheetId, tiers: allTiers }),
-        }).catch(() => {});
-      }
-    } catch(e) { console.warn('Post-connect sync error:', e); }
-  })();
 }
 function loadPropertiesFromFunction(props, countyOverride, scrubbedApns, ownerMap) {
   properties.forEach(p => { if (p.marker) p.marker.remove(); });
