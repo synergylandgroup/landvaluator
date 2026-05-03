@@ -1682,12 +1682,8 @@ async function saveAndSyncZone() {
 
     showToast(p._isUnassigned ? `Unassigned Zone saved — pricing synced ✓` : `Zone ${p.letter} saved — ${assigned} assigned, pricing synced ✓`, 'success');
 
-    // Fire-and-forget: recalculate offer prices via Netlify (non-blocking)
-    fetch('/.netlify/functions/sheets-refresh-prices', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sheetId: cfg.sheetId, tiers: allTiers }),
-    }).catch(() => {});
+    // Fire-and-forget: trigger refreshOfferPrices() in Apps Script
+    fetch('/.netlify/functions/sheets-trigger-refresh', { method: 'POST' }).catch(() => {});
   } catch(err) {
     showToast('Sync error: ' + err.message, 'error');
   }
