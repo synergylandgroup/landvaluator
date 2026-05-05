@@ -554,6 +554,7 @@ function _setSheetConfig(stateAbbr, countyName, cfg) {
   DB.saveSheetConfigs(sheetConfigs);
 }
 let countySourceId = null;
+let _activeCountyKey = null; // tracks which county's boundary is shown via countySourceId
 const _countyLayers = {}; // key -> sourceId for all counties with zones
 let _pendingCountyGeoJSON = null;
 let _countyGeoJSONCache = {};
@@ -2190,19 +2191,20 @@ async function deleteCounty(stateAbbr, countyName, evt) {
   const toDelete = polygons.filter(p => p.stateAbbr === stateAbbr && p.countyName === countyName);
   if (!toDelete.length) return;
   const fullState = abbrToFullName(stateAbbr) || stateAbbr;
-  const multi = toDelete.length > 1;
-  const letters = toDelete.map(p => p.letter);
+  const realZones = toDelete.filter(p => !p._isUnassigned);
+  const hasUnassigned = toDelete.some(p => p._isUnassigned);
+  const letters = realZones.map(p => p.letter);
   const zoneList = letters.length > 2
     ? 'Zones ' + letters.slice(0, -1).join(', ') + ' and ' + letters[letters.length - 1]
     : letters.length === 2
     ? 'Zones ' + letters[0] + ' and ' + letters[1]
-    : 'Zone ' + letters[0];
-  const title = multi
-    ? `Delete ${zoneList} in ${countyName} County, ${fullState}?`
-    : `Delete Zone ${toDelete[0].letter} in ${countyName} County, ${fullState}?`;
-  const sub = multi
-    ? `This will permanently delete ${zoneList}. This cannot be undone.`
-    : 'This action cannot be undone.';
+    : letters.length === 1
+    ? 'Zone ' + letters[0]
+    : '';
+  const unassignedSuffix = hasUnassigned ? (zoneList ? ', and the Unassigned zone' : 'the Unassigned zone') : '';
+  const fullList = zoneList + unassignedSuffix;
+  const title = `Delete ${fullList} in ${countyName} County, ${fullState}?`;
+  const sub = `This will permanently delete ${fullList}. This cannot be undone.`;
   const confirmed = await _showConfirm({ title, sub, okLabel: 'Delete' });
   if (!confirmed) return;
   toDelete.forEach(p => {
@@ -2227,6 +2229,14 @@ async function deleteCounty(stateAbbr, countyName, evt) {
     _removeCountyLayer();
     if (map.getLayer('state-boundary-line')) map.removeLayer('state-boundary-line');
     if (map.getSource('state-boundary')) map.removeSource('state-boundary');
+  }
+  // Always clear active county boundary and pending GeoJSON for the deleted county
+  // so new polygons can't be drawn in its visible outline
+  const _delKey = `${stateAbbr}|${countyName}`;
+  if (_activeCountyKey === _delKey) {
+    _removeCountyLayer();
+    _pendingCountyGeoJSON = null;
+    _activeCountyKey = null;
   }
   renderPolygonList(); persistZones(); _rebuildAllLabels();
 
@@ -3191,6 +3201,7 @@ async function loadCounty() {
     // Register in persistent keyed layers so it survives county switching
     const key = _countyKey(abbr, county);
     _countyGeoJSONCache[key] = geojson;
+    _activeCountyKey = key;
     _addCountyBoundaryForKey(key, geojson);
     _readdCountyLayer(geojson); // also set countySourceId for validation
     // Rebuild county pills now that GeoJSON is cached — ensures centroid uses county bounds
