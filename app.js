@@ -2379,13 +2379,14 @@ async function _loadAllCountyBoundaries(cacheOnly) {
 async function restoreZones() {
   try {
     const data = await DB.loadZones();
-    if (!data || !Array.isArray(data) || !data.length) return;
-    // 1.2 — skipLayers=true: restore zone data + labels but don't draw polygon fills/outlines
-    // Polygon layers appear only after user actively selects a county
-    data.forEach(d => _loadZone(d, true));
-    _rebuildAllLabels();
-    renderPolygonList(); // always render sidebar immediately after zone data is loaded
-    showToast(`Restored ${data.length} zone${data.length>1?'s':''}`, 'success');
+    if (data && Array.isArray(data) && data.length) {
+      // 1.2 — skipLayers=true: restore zone data + labels but don't draw polygon fills/outlines
+      // Polygon layers appear only after user actively selects a county
+      data.forEach(d => _loadZone(d, true));
+      _rebuildAllLabels();
+      renderPolygonList(); // always render sidebar immediately after zone data is loaded
+      showToast(`Restored ${data.length} zone${data.length>1?'s':''}`, 'success');
+    }
   } catch(e) { console.error('restoreZones error:', e); }
   // Draw zone fill/line layers and county boundaries outside try block
   // so any map layer errors don't silently abort zone data restoration
