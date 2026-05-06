@@ -522,14 +522,16 @@ Bound to each county's Google Spreadsheet. Key functions:
 |---|---------|-------|------|
 | 1 | **Google OAuth login** | ✅ Complete. Google OAuth enabled via Supabase, "Continue with Google" button on auth modal and landing page. | Done |
 | 2 | **Auto-refresh pricing via Netlify function** | Port `refreshOfferPrices()` into `sheets-refresh-prices.js`. Clean up `doPost`, `sheets-trigger-refresh.js`, and `GAS_REFRESH_URL` env var. Manual "6. Refresh" stays as fallback. | ~2-3 hrs |
-| 3 | **Unassigned zone persistence** | Show unassigned zone as soon as first zone is drawn (before sheet connected). County pill and zone counts show dash when no sheet connected. Unassigned stays visible on disconnect. Pricing assignable before sheet connection. Requires Supabase schema change — `unassigned_zones` table currently one entry per user, needs per-county storage. | ~2-3 hrs |
+| 3 | **Unassigned zone persistence** | ✅ Complete. Unassigned zone appears on county select, persists per-county in Supabase, survives disconnect. | Done |
 | 4 | **KML parcel boundary outlines** | Viable if LandInsights can export all parcels in one KML per county (single-file-per-parcel is not viable). KML contains APN, address, owner, acreage. Would match to property records by APN and show clickable parcel outlines on map. Ray is checking with LandInsights. | ~1-2 hrs if viable |
 | 5 | **Onboarding video** | Short screen recording showing how to connect Google Sheets. Embed link in connect modal. Content creation, no code. | — |
 | 6 | **Email confirmation** | Currently OFF. Enable once SMTP is configured for production. | — |
-| 7 | **Sheet license verification** | New `verify-sheet.js` Netlify function checks if a sheet ID is registered in any user's `sheet_configs` in Supabase. Apps Script calls this endpoint at the start of each key function (populateScrubbed, refreshOfferPrices, syncBlindOfferTab, etc.). Unauthorized copies (new sheet ID not in Supabase) are blocked. Result cached per session to minimize delay. Existing connected sheets need manual script update; future sheets get it via template. | ~1-2 hrs |
+| 7 | **Sheet license verification** | ✅ Complete. verify-sheet.js Netlify function + Apps Script authorization check. Licensed and Unlicensed script versions in repo. | Done |
 | 8 | **Subscription billing** | Stripe integration. No monthly fee — 2.9% + 30¢ per transaction. | When ready to monetize |
-| 9 | **Move Sheets template to landvaluator@gmail.com** | Template currently lives in a different Google account. Share it with landvaluator@gmail.com and add to that Drive so it doesn't get accidentally deleted. No code changes needed. | 5 min |
-| 10 | **Hide toolbar buttons before login** | Tooltip, save, and load zone buttons in top-right header are currently clickable before signing in. Already coded locally — push with next batch. | Ready to push |
+| 9 | **Move Sheets template to landvaluator@gmail.com** | ✅ Complete. Template updated and stored under landvaluator@gmail.com. | Done |
+| 10 | **Hide toolbar buttons before login** | ✅ Complete. Toolbar buttons hidden until authenticated. | Done |
+| 11 | **Redfin comps analysis spreadsheet (standalone)** | Separate Google Sheets + Apps Script tool for importing Redfin sold property data. Maps raw Redfin CSV columns (PRICE, LOT SIZE in sq ft → acres, LAT/LNG, SOLD DATE, etc.) into a scrubbed tab. Runs Jenks Natural Breaks algorithm on acreage values to automatically detect natural pricing groupings. Outputs proposed acreage buckets with median PPA, count, and min/max per tier. Validates the Jenks approach before integrating into the app. | ~2-3 hrs |
+| 12 | **Pricing suggestions in LandValuator (Jenks integration)** | After validating the standalone Redfin analysis sheet (#11), bring Jenks Natural Breaks into the app. User uploads or connects a Redfin sold dataset, a Netlify function runs the analysis, and the zone pricing panel shows suggested PPA tiers per acreage range. Replaces manual eyeballing of pricing. | ~3-4 hrs |
 
 ---
 
