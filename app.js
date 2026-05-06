@@ -1754,7 +1754,7 @@ function renderPolygonList() {
     return;
   }
 
-  // Group by stateAbbr → countyName (exclude virtual unassigned entries)
+  // Group by stateAbbr → countyName (exclude virtual unassigned entries from zone list)
   const byState = {};
   polygons.forEach(p => {
     if (p._isUnassigned) return;
@@ -1763,6 +1763,13 @@ function renderPolygonList() {
     if (!byState[sa]) byState[sa] = {};
     if (!byState[sa][cn]) byState[sa][cn] = [];
     byState[sa][cn].push(p);
+  });
+  // Also include counties that only have an Unassigned zone (no real zones yet)
+  polygons.filter(p => p._isUnassigned).forEach(p => {
+    const sa = p.stateAbbr || 'Unknown';
+    const cn = p.countyName || 'Unknown';
+    if (!byState[sa]) byState[sa] = {};
+    if (!byState[sa][cn]) byState[sa][cn] = [];
   });
 
 
