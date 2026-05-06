@@ -1765,14 +1765,6 @@ function renderPolygonList() {
     byState[sa][cn].push(p);
   });
 
-  // Always show the currently selected county even if it has no zones yet
-  // so the Unassigned zone is immediately available for whole-county pricing
-  const _selSa = document.getElementById('stateSelect').value;
-  const _selCn = document.getElementById('countySelect').value;
-  if (_selSa && _selCn) {
-    if (!byState[_selSa]) byState[_selSa] = {};
-    if (!byState[_selSa][_selCn]) byState[_selSa][_selCn] = [];
-  }
 
   list.innerHTML = '';
   Object.keys(byState).sort().forEach(stateAbbr => {
@@ -3261,6 +3253,18 @@ async function loadCounty() {
       coords.forEach(c => bounds.extend(c));
     });
     map.fitBounds(bounds, { padding:60 });
+    // Ensure Unassigned virtual polygon exists for this county so it appears
+    // in the sidebar immediately — allows whole-county pricing without drawing zones
+    const _uId = `__unassigned__${abbr}|${county}`;
+    if (!polygons.find(p => p.id === _uId)) {
+      polygons.push({
+        id: _uId, letter: '?', name: 'Unassigned', color: '#a0aec0',
+        stateAbbr: abbr, countyName: county, points: [], propCount: 0,
+        pricingTiers: [], description: '', _isUnassigned: true,
+        labelMarker: null, handles: [],
+      });
+      renderPolygonList();
+    }
     showToast(`${county} County loaded`, 'success');
   } catch(e) { showToast('Could not load county boundary: ' + e.message, 'error'); console.error('loadCounty error:', e); }
 }
