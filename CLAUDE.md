@@ -521,7 +521,6 @@ Bound to each county's Google Spreadsheet. Key functions:
 | # | Feature | Notes | Est. |
 |---|---------|-------|------|
 | 1 | **Google OAuth login** | ✅ Complete. Google OAuth enabled via Supabase, "Continue with Google" button on auth modal and landing page. | Done |
-| 2 | **Auto-refresh pricing via Netlify function** | Port `refreshOfferPrices()` into `sheets-refresh-prices.js`. Clean up `doPost`, `sheets-trigger-refresh.js`, and `GAS_REFRESH_URL` env var. Manual "6. Refresh" stays as fallback. | ~2-3 hrs |
 | 3 | **Unassigned zone persistence** | ✅ Complete. Unassigned zone appears on county select, persists per-county in Supabase, survives disconnect. | Done |
 | 4 | **KML parcel boundary outlines** | Viable if LandInsights can export all parcels in one KML per county (single-file-per-parcel is not viable). KML contains APN, address, owner, acreage. Would match to property records by APN and show clickable parcel outlines on map. Ray is checking with LandInsights. | ~1-2 hrs if viable |
 | 5 | **Onboarding video** | Short screen recording showing how to connect Google Sheets. Embed link in connect modal. Content creation, no code. | — |
