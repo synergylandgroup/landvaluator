@@ -1900,9 +1900,10 @@ function renderPolygonList() {
         polyDiv.appendChild(div);
       });
 
-      // Unassigned properties row — shown when properties loaded but some have no zone
-      // Show unassigned row whenever real zones exist for this county
-      if (cPolys.length > 0) {
+      // Show unassigned row whenever real zones exist OR an unassigned polygon is present
+      const _uId = `__unassigned__${stateAbbr}|${countyName}`;
+      const _hasUnassignedPoly = !!polygons.find(p => p.id === _uId);
+      if (cPolys.length > 0 || _hasUnassignedPoly) {
         const _hasSheet = !!(_getSheetConfig(stateAbbr, countyName));
         const _unassignedCount = _hasSheet ? properties.filter(p => {
           const pc = (p.county||'').toLowerCase().replace(' county','').trim();
@@ -1912,7 +1913,6 @@ function renderPolygonList() {
         }).length : null;
 
         // Get or create a virtual polygon for unassigned properties pricing
-        const _uId = `__unassigned__${stateAbbr}|${countyName}`;
         let _uPoly = polygons.find(p => p.id === _uId);
         if (!_uPoly) {
           _uPoly = {
