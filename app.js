@@ -1742,8 +1742,9 @@ document.getElementById('zoneEditorModal').addEventListener('click', e => { if (
 // =========================================================
 function renderPolygonList() {
   const _realPolyCount = polygons.filter(p => !p._isUnassigned).length;
-  document.getElementById('zoneCount').textContent = _realPolyCount;
-  document.getElementById('statPolygons').textContent = _realPolyCount;
+  const _totalPolyCount = polygons.length;
+  document.getElementById('zoneCount').textContent = _totalPolyCount;
+  document.getElementById('statPolygons').textContent = _totalPolyCount;
   const stateSet = new Set(polygons.map(p => p.stateAbbr).filter(Boolean));
   document.getElementById('statStates').textContent = stateSet.size;
 
@@ -1763,6 +1764,15 @@ function renderPolygonList() {
     if (!byState[sa][cn]) byState[sa][cn] = [];
     byState[sa][cn].push(p);
   });
+
+  // Always show the currently selected county even if it has no zones yet
+  // so the Unassigned zone is immediately available for whole-county pricing
+  const _selSa = document.getElementById('stateSelect').value;
+  const _selCn = document.getElementById('countySelect').value;
+  if (_selSa && _selCn) {
+    if (!byState[_selSa]) byState[_selSa] = {};
+    if (!byState[_selSa][_selCn]) byState[_selSa][_selCn] = [];
+  }
 
   list.innerHTML = '';
   Object.keys(byState).sort().forEach(stateAbbr => {
@@ -2183,6 +2193,32 @@ async function deletePoly(id, skipConfirm) {
   _removeZoneLayers(id);
   properties.forEach(prop => { if (prop.zone === p.name) { _markerColor(prop.marker, '#f7c948'); prop.zone = null; } });
   polygons.splice(i, 1);
+
+  // If county now has no real zones, clean up its boundary and Unassigned polygon
+  if (!p._isUnassigned) {
+    const _sa = p.stateAbbr, _cn = p.countyName;
+    const realRemaining = polygons.filter(q => q.stateAbbr === _sa && q.countyName === _cn && !q._isUnassigned);
+    if (!realRemaining.length) {
+      // Remove county boundary layer
+      const _key = _countyKey(_sa, _cn);
+      if (_countyLayers[_key]) {
+        const _sid = _countyLayers[_key];
+        if (map.getLayer(_sid+'-fill')) map.removeLayer(_sid+'-fill');
+        if (map.getLayer(_sid+'-line')) map.removeLayer(_sid+'-line');
+        if (map.getSource(_sid)) map.removeSource(_sid);
+        delete _countyLayers[_key];
+      }
+      // Remove Unassigned virtual polygon for this county
+      polygons = polygons.filter(q => q.id !== `__unassigned__${_sa}|${_cn}`);
+      // Clear active boundary if it was this county
+      if (_activeCountyKey === _key) {
+        _removeCountyLayer();
+        _pendingCountyGeoJSON = null;
+        _activeCountyKey = null;
+      }
+    }
+  }
+
   renderPolygonList(); persistZones(); _rebuildAllLabels();
 }
 
@@ -2308,9 +2344,9 @@ function _polyToJSON(p) {
 }
 async function persistZones() {
   await DB.saveZones(polygons.filter(p => !p._isUnassigned).map(_polyToJSON));
-  // Save unassigned pricing per county
+  // Save unassigned pricing per county — only persist if data has been entered
   const unassignedMap = {};
-  polygons.filter(p => p._isUnassigned).forEach(p => {
+  polygons.filter(p => p._isUnassigned && ((p.pricingTiers && p.pricingTiers.length > 0) || p.description)).forEach(p => {
     unassignedMap[`${p.stateAbbr}|${p.countyName}`] = { pricingTiers: p.pricingTiers || [], description: p.description || '' };
   });
   await DB.saveUnassigned(unassignedMap);
