@@ -3066,7 +3066,7 @@ async function loadCounties(silent) {
   } catch(e) {}
   try {
     const fips = STATE_FIPS[abbr];
-    const data = await (await fetch(`https://api.census.gov/data/2020/dec/pl?get=NAME&for=county:*&in=state:${fips}`)).json();
+    const data = await (await fetch(`/.netlify/functions/county-list?fips=${fips}`)).json();
     const stateName = STATES.find(s=>s[1]===abbr)[0];
     const counties = data.slice(1).map(row=>row[0].replace(`, ${stateName}`,'').replace(/ County$/,'').trim()).sort();
     DB.saveCountyCache(abbr, counties);
