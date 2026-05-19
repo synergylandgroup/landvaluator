@@ -3056,12 +3056,16 @@ async function loadCounties(silent) {
     if (!silent) { const s=loadAppState(); if(s&&s.state===abbr&&s.county) { cs.value=s.county; } }
     _syncCountyTrigger(cs.value);
   }
+  // Check cache — use immediately if fresh, keep as fallback even if expired
+  let _expiredCache = null;
   try {
     const cached = DB.loadCountyCache(abbr);
     if (cached) {
       const p = typeof cached === 'string' ? JSON.parse(cached) : cached;
-      if (p&&p.counties&&p.abbr===abbr&&Date.now()-p.ts<30*24*60*60*1000) { fill(p.counties); return; }
-      DB.clearCountyCache(abbr);
+      if (p && p.counties && p.abbr === abbr) {
+        if (Date.now() - p.ts < 30*24*60*60*1000) { fill(p.counties); return; } // fresh
+        _expiredCache = p.counties; // expired but keep as fallback — don't delete
+      }
     }
   } catch(e) {}
   try {
@@ -3072,8 +3076,9 @@ async function loadCounties(silent) {
     DB.saveCountyCache(abbr, counties);
     fill(counties);
   } catch(e) {
-    try { const _cc=DB.loadCountyCache(abbr); if(_cc){const _ccp=typeof _cc==='string'?JSON.parse(_cc):_cc; fill(_ccp.counties||_ccp);return;} } catch(e2){}
-    if (!silent) { cs.innerHTML='<option value="">Failed to load</option>'; _syncCountyTrigger(''); }
+    // API failed — use expired cache if available
+    if (_expiredCache) { fill(_expiredCache); return; }
+    if (!silent) { cs.innerHTML='<option value="">Failed to load — Census API may be down</option>'; _syncCountyTrigger(''); }
   }
 }
 
