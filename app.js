@@ -1758,8 +1758,9 @@ document.getElementById('zoneEditorModal').addEventListener('click', e => { if (
 // =========================================================
 function renderPolygonList() {
   const _realPolyCount = polygons.filter(p => !p._isUnassigned).length;
+  const _countyCount = new Set(polygons.filter(p => p.stateAbbr && p.countyName).map(p => `${p.stateAbbr}|${p.countyName}`)).size;
   document.getElementById('zoneCount').textContent = _realPolyCount;
-  document.getElementById('statPolygons').textContent = _realPolyCount;
+  document.getElementById('statPolygons').textContent = _countyCount;
   const stateSet = new Set(polygons.map(p => p.stateAbbr).filter(Boolean));
   document.getElementById('statStates').textContent = stateSet.size;
 
@@ -1844,8 +1845,8 @@ function renderPolygonList() {
         ? `<svg width="17" height="17" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 2h7l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="#2e8a5a" stroke-width="1.6" stroke-linejoin="round"/><path d="M11 2v5h5" stroke="#2e8a5a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><line x1="6" y1="10" x2="14" y2="10" stroke="#2e8a5a" stroke-width="1.4" stroke-linecap="round"/><line x1="6" y1="13" x2="14" y2="13" stroke="#2e8a5a" stroke-width="1.4" stroke-linecap="round"/><line x1="6" y1="16" x2="11" y2="16" stroke="#2e8a5a" stroke-width="1.4" stroke-linecap="round"/></svg>`
         : `<svg width="17" height="17" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 2h7l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" stroke="#b94040" stroke-width="1.6" stroke-linejoin="round"/><path d="M11 2v5h5" stroke="#b94040" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><line x1="6" y1="10" x2="14" y2="10" stroke="#b94040" stroke-width="1.4" stroke-linecap="round"/><line x1="6" y1="13" x2="14" y2="13" stroke="#b94040" stroke-width="1.4" stroke-linecap="round"/><line x1="6" y1="16" x2="11" y2="16" stroke="#b94040" stroke-width="1.4" stroke-linecap="round"/></svg>`;
       const sheetIconTooltip = isConnected
-        ? `Manage sheet connected to ${countyName} County`
-        : `Connect a sheet to ${countyName} County`;
+        ? `Manage spreadsheet connected to ${countyName} County`
+        : `Connect a spreadsheet to ${countyName} County`;
 
       const cHdr = document.createElement('div');
       cHdr.className = 'county-header';
@@ -1856,7 +1857,7 @@ function renderPolygonList() {
           <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="openSheetsModalForCounty('${stateAbbr}','${CSS.escape(countyName)}',event)">${sheetIconSVG}</button><span class="tip-box tip-sidebar">${sheetIconTooltip}</span></span>
           <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="shareCounty('${stateAbbr}','${CSS.escape(countyName)}',event)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7d95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button><span class="tip-box tip-sidebar">Copy link to open ${countyName} County in LandValuator.</span></span>
           <span class="county-zone-pill" id="cpill-${stateAbbr}-${countyName.replace(/\s+/g,'_')}">—</span>
-          <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn county-pricing-btn" onclick="openCountywidePanel('${stateAbbr}','${CSS.escape(countyName)}',event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7d95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button><span class="tip-box tip-sidebar">Open countywide pricing for ${countyName} County</span></span>
+          <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn county-pricing-btn" onclick="openCountywidePanel('${stateAbbr}','${CSS.escape(countyName)}',event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7d95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button><span class="tip-box tip-sidebar">Open pricing panel for ${countyName} County</span></span>
           <span class="tip-wrap"><button class="county-action-btn sheet-icon-btn" onclick="deleteCounty('${stateAbbr}','${CSS.escape(countyName)}',event)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6b7d95" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button><span class="tip-box tip-sidebar">Delete ${countyName} County and its saved zones</span></span>
         </div>
       `;
@@ -1905,8 +1906,8 @@ function renderPolygonList() {
             <div class="poly-name">ZONE ${p.letter}</div>
             <div class="poly-count">${p.countyName ? p.countyName+' County, '+p.stateAbbr : ''}</div>
           </div>
-          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:auto"><span class="tip-wrap"><span class="zone-prop-count tip-anchor" style="cursor:default">${p.propCount||0}</span><span class="tip-box tip-sidebar">${p.propCount||0} propert${(p.propCount||0)===1?'y':'ies'} assigned to Zone ${p.letter}</span></span><span class="tip-wrap"><button class="poly-btn notes-btn" onclick="openZoneDescModal('${p.id}')">⚙</button><span class="tip-box tip-sidebar">Open pricing panel for Zone ${p.letter}</span></span>
-          <span class="tip-wrap"><button class="poly-btn delete-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button><span class="tip-box tip-sidebar">Delete Zone ${p.letter}</span></span></div>
+          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:auto"><span class="tip-wrap"><span class="zone-prop-count tip-anchor" style="cursor:default">${p.propCount||0}</span><span class="tip-box tip-sidebar">${p.propCount||0} propert${(p.propCount||0)===1?'y':'ies'} assigned to Zone ${p.letter}</span></span><span class="tip-wrap"><button class="poly-btn notes-btn" onclick="openZoneDescModal('${p.id}')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button><span class="tip-box tip-sidebar">Open pricing panel for Zone ${p.letter}</span></span>
+          <span class="tip-wrap"><button class="poly-btn delete-btn"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button><span class="tip-box tip-sidebar">Delete Zone ${p.letter}</span></span></div>
         `;
         div.querySelector('.notes-btn').addEventListener('click', e => { e.stopPropagation(); openZoneDescModal(p.id); });
         div.querySelector('.delete-btn').addEventListener('click', e => { e.stopPropagation(); deletePoly(p.id); });
@@ -2168,9 +2169,11 @@ async function deletePoly(id, skipConfirm) {
     const _sa = p.stateAbbr, _cn = p.countyName;
     const realRemaining = polygons.filter(q => q.stateAbbr === _sa && q.countyName === _cn && !q._isUnassigned);
     if (!realRemaining.length) {
-      // Remove county boundary layer
+      // Remove county boundary layer only if countywide pricing has no data
       const _key = _countyKey(_sa, _cn);
-      if (_countyLayers[_key]) {
+      const _cwPoly = polygons.find(q => q.id === `__unassigned__${_sa}|${_cn}`);
+      const _cwHasData = _cwPoly && (_cwPoly.description || (_cwPoly.pricingTiers && _cwPoly.pricingTiers.some(t => t.pricePerAcre)));
+      if (!_cwHasData && _countyLayers[_key]) {
         const _sid = _countyLayers[_key];
         if (map.getLayer(_sid+'-fill')) map.removeLayer(_sid+'-fill');
         if (map.getLayer(_sid+'-line')) map.removeLayer(_sid+'-line');
@@ -2178,8 +2181,8 @@ async function deletePoly(id, skipConfirm) {
         delete _countyLayers[_key];
       }
       // Note: countywide pricing polygon is preserved — only deleted via deleteCounty
-      // Clear active boundary if it was this county
-      if (_activeCountyKey === _key) {
+      // Clear active boundary only if countywide has no data
+      if (!_cwHasData && _activeCountyKey === _key) {
         _removeCountyLayer();
         _pendingCountyGeoJSON = null;
         _activeCountyKey = null;
