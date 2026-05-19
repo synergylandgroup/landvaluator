@@ -1766,7 +1766,7 @@ function renderPolygonList() {
 
   const list = document.getElementById('polygonsList');
   if (!polygons.length) {
-    list.innerHTML = '<div class="empty-state">No zones yet. Select a state and county, then draw polygons on the map to create pricing zones.</div>';
+    list.innerHTML = '<div class="empty-state">No saved counties yet.</div>';
     return;
   }
 
