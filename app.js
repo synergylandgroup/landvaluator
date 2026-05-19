@@ -2177,8 +2177,7 @@ async function deletePoly(id, skipConfirm) {
         if (map.getSource(_sid)) map.removeSource(_sid);
         delete _countyLayers[_key];
       }
-      // Remove Unassigned virtual polygon for this county
-      polygons = polygons.filter(q => q.id !== `__unassigned__${_sa}|${_cn}`);
+      // Note: countywide pricing polygon is preserved — only deleted via deleteCounty
       // Clear active boundary if it was this county
       if (_activeCountyKey === _key) {
         _removeCountyLayer();
